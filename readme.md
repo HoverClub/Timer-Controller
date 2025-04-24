@@ -1,7 +1,5 @@
 A comprehensive programmable controller for managing timers, sensors, and control outputs, with a web-based interface for configuration and monitoring based on the Espressif 8266.  Supports up to 127 controls with 127 timers (time periods) per control with on-demand control web page loading.  Each timer can use  an optional input sensor (thermostat, switch, etc.) .  All of this is programmed through the web based user interface,
 
-To reduce network 
-
 Inspired by (and includes code from) Matthew Ford,  2021/12/06 (c)2021-2022 Forward Computing and Control Pty. Ltd. https://www.forward.com.au/pfod/HomeAutomation/PowerTimer/index.html NSW, Australia  www.forward.com.au  This code may be freely used for both private and commerical use. Provide this copyright is maintained.
 
 1.  The web interface is designed to be used on a local network.  It is not secure 

@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Controller</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" type="text/css" href="style.css">
+</head>
+<body>
+<div class="tab">
+  <button class="tablinks" id="setTZbtn" onclick="getControl(-1)">Timezone</button>
+  <span class="clock" id="clock">00:00:00</span>
+</div>
+
+<div id="control" class="tabcontent" >
+
+  <!-- Control content -->
+  <input type="hidden" id="C" name="C" value=""/>
+  <div id ="EE"></div>
+  <h2>
+    <div>
+      <span>
+        <input type="text" id="N" name="N" value="" maxlength="12">
+      </span>
+      <span id="I"></span>
+    </div>
+  </h2>
+  <div class="content">
+    <div>
+        <button name="A" value="F" onclick="save('F');">OFF</button>  
+        <button name="A" value="N" onclick="save('N');">ON</button>
+        <button name="A" value="A" onclick="save('A');">AUTO</button><br>
+        <button name="A" value="B" onclick="save('B');">1hr BOOST1</button>
+        <button name="A" value="V" onclick="save('V');">ADVANCE1</button>
+    </div>
+    <div class="card-grid">
+      <div class="card">
+        <div class="time">
+
+          <!-- add more timers if reqd by duplicating a module and incrementing all of its timer'# in 'Tn' -->
+
+          <div id="T1">
+            <div><label><strong>Timer 1</strong></label></div>
+            <div class="time-field">
+              <label for="T1O">ON at:</label>
+              <input type="time" id="T1O" name="T1O" value="0" min="00:00:00" max="24:00:00">
+              <label for="T1F"> OFF at:</label>
+              <input type="time" id="T1F" name="T1F" value="0" min="00:00:00" max="24:00:00">
+            </div>
+            <div id="T1sect">
+              <div class="time-field">
+                <label for="T1S">When sensor </label>
+                <select id="T1S" name="T1S"></select>
+                <span id="T1V"></span>
+              </div>
+              <div class="time-field">
+                <label for="T1L">is </label>
+                <select id="T1L" name="T1L">
+                  <option value="L">less than</option>
+                  <option value="M">more than</option>
+                </select>
+                <input type="number" id="T1T" name="T1T" value="0" min="-128" max="127">&#8451;
+              </div>
+              <hr>
+            </div>
+          </div>
+
+          <div id="T2">
+            <div><label><strong>Timer 2</strong></label></div>
+            <div class="time-field">
+              <label for="T2O">ON at:</label>
+              <input type="time" id="T2O" name="T2O" value="0" min="00:00:00" max="24:00:00">
+              <label for="T2F"> OFF at:</label>
+              <input type="time" id="T2F" name="T2F" value="0" min="00:00:00" max="24:00:00">
+            </div>
+            <div id="T2sect">
+              <div class="time-field">
+                <label for="T2S">When sensor </label>
+                <select id="T2S" name="T2S"></select>
+                <span id="T2V"></span>
+              </div>
+              <div class="time-field">
+                <label for="T2L">is </label>
+                <select id="T2L" name="T2L">
+                  <option value="L">less than</option>
+                  <option value="M">more than</option>
+                </select>
+                <input type="number" id="T2T" name="T2T" value="0" min="-128" max="127">&#8451;
+              </div>
+              <hr>
+            </div>
+          </div>
+
+          <div id="T3">
+            <div><label><strong>Timer 3</strong></label></div>
+            <div class="time-field">
+              <label for="T3O">ON at:</label>
+              <input type="time" id="T3O" name="T3O" value="0" min="00:00:00" max="24:00:00">
+              <label for="T3F"> OFF at:</label>
+              <input type="time" id="T3F" name="T3F" value="0" min="00:00:00" max="24:00:00">
+            </div>
+            <div id="T3sect">
+              <div class="time-field">
+                <label for="T3S">When sensor </label>
+                <select id="T3S" name="T3S"></select>
+                <span id="T3V"></span>
+              </div>
+              <div class="time-field">
+                <label for="T3L">is </label>
+                <select id="T3L" name="T3L">
+                  <option value="L">less than</option>
+                  <option value="M">more than</option>
+                </select>
+                <input type="number" id="T3T" name="T3T" value="0" min="-128" max="127">&#8451;
+              </div>
+              <hr>
+            </div>
+          </div>
+
+          <div id="T4">
+            <div><label><strong>Timer 4</strong></label></div>
+            <div class="time-field">
+              <label for="T4O">ON at:</label>
+              <input type="time" id="T4O" name="T4O" value="0" min="00:00:00" max="24:00:00">
+              <label for="T4F"> OFF at:</label>
+              <input type="time" id="T4F" name="T4F" value="0" min="00:00:00" max="24:00:00">
+            </div>
+            <div id="T4sect">
+              <div class="time-field">
+                <label for="T4S">When sensor </label>
+                <select id="T4S" name="T4S"></select>
+                <span id="T4V"></span>
+              </div>
+              <div class="time-field">
+                <label for="T4L">is </label>
+                <select id="T4L" name="T4L">
+                  <option value="L">less than</option>
+                  <option value="M">more than</option>
+                </select>
+                <input type="number" id="T4T" name="T4T" value="0" min="-128" max="127">&#8451;
+              </div>
+              <hr>
+            </div>
+          </div>
+
+          <button type="submit" class="button" onclick="save();">Save Changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="setTZ" class="tabcontent">
+  <div class="content">
+      <div class="card-grid">
+        <div class="card">
+          <form action="/setTime">
+            <div class="time">
+              <label><strong>Current Time</strong></label>
+              <div class="time-field"><input type="time" id="TIME" name="TIME" value="%TI%" min="00:00" max="24:00:00" required></div>
+              <div class="info-txt">Setting the time overrides any Time Zone settings</div>
+              <br>OR<p>
+              <label for="fname">POSIX Time Zone</label><br>
+              <div class="info-txt">(Note: POSIX TZ uses the -ve of the GMT offset)</div>
+              <div class="info-txt" id="tz_str_corrected">%TC%</div>
+              <div class="tzstr-field"><input type="text" id="TZ_INPUT_STR" name="TZ_INPUT_STR" style="width: 250px;" value="%TZ%"></div>
+              <div class="arrowpopup" onclick="myFunction()" style="font-size: 15px;"><b>&lt;Click here for Format Help&gt;</b>
+                <span class="tooltiptext" id="tooltipdemo">TZ/DST Format Help<br><br>-GMT hr:mm<br>e.g. for GMT+0530 enter -5:30<br>
+              or<br> -GMT hr:mm , dstStart , dstStop i.e.<br>-GMT hr:mm , mm.wk.dy/hr , mm.wk.dy/hr<br>periods (.) between mm wk dy<br>
+              mm is 1 to 12<br>wk is 1 to 5(lastweek)<br>
+              dy is 0 (Sun) to 6<br><br>e.g. 8,10.1.0/2<br>
+              cleans up to<br>&lt;-08&gt;8&lt;-07&gt;7,M10.1.0/2,M4.1.0/2</span>
+              </div>
+              <div class="info-txt" id="tz_str_desc">%TD%</div>
+              <button type="submit" class="button">Save changes</button>
+              <div><button type="submit" name="RESET" class="button" style ="font-size: 15px;">Reset Default Time Zone</button></div>
+              <div class="info-txt" id="tz_str_set_corrected">%TS%</div>
+              <br>
+            </div>
+          </form>
+          <div>
+            <a href="/download" class="button">Download Config File</a>
+            <form method="POST" action="/upload" enctype="multipart/form-data">
+              <br>Upload config file:<input type="file" name="bin" accept=".bin" onchange="form.submit();"/>
+            </form>
+          </div>
+        </div>
+      </div> 
+    </div>
+  </div>
+</div>
+
+<!-- need to include constants in index.html as js file may not get reloaded after a post! -->
+<script>var 
+  currCtrl = %C%;
+  const maxCtrls = %MAX_CTRLS%;
+  const maxTimers = %MAX_TIMERS%;
+  const maxWebTimers = %MAX_WEB_TIMERS%;
+  const maxStats = %MAX_STATS%;
+  const statType = [%STAT_TYPES%]; // 0 = analog, 1 = digital sensor
+  const haveSNTP = %HAVE_SNTP%;
+  var errMsg = "";
+  var eCntr = 0;
+</script>
+
+<script type="text/javascript" src="timer.js"></script>
+</body>
+</html>
+

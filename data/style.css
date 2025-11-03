@@ -103,6 +103,7 @@ h1{
   border: 1px solid #ccc;
   border-top: none;
   animation: fadeEffect 1s; /* Fading effect takes 1 second */
+  background-color:lightgrey;
 } 
 .time {
   display: inline-block;
@@ -110,11 +111,12 @@ h1{
   border: none;
   border-radius: 4px;
   color: white;
-  padding: 16px 20px;
+  padding: 0;
   text-decoration: none;
   font-size: 25px;
-  margin: 2px;
+  margin: 0;
   cursor: pointer;
+  width: 100%
 }	
 
 .time-field {
@@ -124,7 +126,6 @@ h1{
 	background-color: #fff;
 	background-clip: padding-box;
 	border: 1px solid #ced4da;
-  font-size: 20px;
 }
 .time-field label {
   font-size: 18px;
@@ -133,7 +134,6 @@ h1{
   background-color: #fff;
 	background-clip: padding-box;
 	border: 1px solid #ced4da;
-  font-size: 20px;
   margin:2px;
 }
 .tzstr-field input {
@@ -178,7 +178,7 @@ input[type=submit] {
   padding: 10px 30px;
   text-decoration: none;
   font-size: 18px;
-  margin: 2px;
+  margin: 4px;
   cursor: pointer;
   box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19);
 }
@@ -204,14 +204,14 @@ h2 {
   padding: 0px;
 }
 .card-grid {
-  max-width: 400px;
+  max-width: 360px;
   margin: 8px auto;
   display: grid;
   grid-gap: 2rem;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 }
 .card {
-  background-color: white;
+  box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19);
 }
 .card-title {
   font-size: 1.2rem;

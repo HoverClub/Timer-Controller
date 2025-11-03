@@ -8,6 +8,7 @@
    This code may be freely used for both private and commerical use.
    Provide this copyright is maintained.
 */
+#include "main.h"
 
 void startWebServer(); // call this from setup() if not starting wifi config
 

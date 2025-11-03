@@ -8,11 +8,8 @@
 
 */
 
-#include "DebugOut.h"
-#include "LittleFSsupport.h"
+#include "main.h"
 
-//#define DEBUG
-static Stream* debugPtr = NULL;  // local to this file
 static bool FS_initialized = false;
 
 /* ===================
@@ -32,17 +29,9 @@ bool initializeFS() {
     return FS_initialized;
   }
 
-#ifdef DEBUG
-  debugPtr = getDebugOut();
-#endif
-
-  if (debugPtr) {
-    debugPtr->println("Mount LittleFS");
-  }
+  debugln("Mount LittleFS");
   if (!LittleFS.begin()) {
-    if (debugPtr) {
-      debugPtr->println("LittleFS mount failed");
-    }
+    debugln("LittleFS mount failed");
     return FS_initialized;
   }
   // else
@@ -52,73 +41,63 @@ bool initializeFS() {
 }
 
 void listDir(const char * dirname) {
-  if (!debugPtr) {
-    return; // no where to send the output
-  }
-  listDir(dirname, *debugPtr);
-}
-
-void listDir(const char * dirname, Stream& out) {
   if (!FS_initialized) {
-    out.println("FS not initialized yet");
+    debugln("FS not initialized yet");
     return;
   }
 
-  out.printf("Listing directory: %s\n", dirname);
+  debugf("Listing directory: %s\n", dirname);
+#ifdef ESP32
+  File root = LittleFS.open(dirname);
+  if (root.isDirectory()) {
+    File file;
+    while (file = root.openNextFile()) {
+      if (file.isDirectory()) {
+        debugf("  DIR : %s\n", file.name());
+      } else 
+        debugf("  FILE: %s SIZE: %i\n", file.name(), file.size());
+    }
+  }
+#else
   Dir root = LittleFS.openDir(dirname);
   while (root.next()) {
     File file = root.openFile("r");
-    out.print("  FILE: ");
-    out.print(root.fileName());
-    out.print("  SIZE: ");
-    out.println(file.size());
+    debug("  FILE: ");
+    debug(root.fileName());
+    debug("  SIZE: ");
+    debugln(file.size());
     file.close();
   }
-  out.println();
+#endif
+  debugln();
 }
 
 bool renameFile(const char * path1, const char * path2) {
   if (!FS_initialized) {
-    if (debugPtr) {
-      debugPtr->println("FS not initialized yet");
-    }
+    debugln("FS not initialized yet");
     return false;
   }
 
-  if (debugPtr) {
-    debugPtr->printf("Renaming file %s to %s\n", path1, path2);
-  }
+  debugf("Renaming file %s to %s\n", path1, path2);
   if (LittleFS.rename(path1, path2)) {
-    if (debugPtr) {
-      debugPtr->println("File renamed");
-    }
+    debugln("File renamed");
     return true;
   } //else
-  if (debugPtr) {
-    debugPtr->println("Rename failed");
-  }
+  debugln("Rename failed");
   return false;
 }
 
 bool deleteFile(const char * path) {
   if (!FS_initialized) {
-    if (debugPtr) {
-      debugPtr->println("FS not initialized yet");
-    }
+    debugln("FS not initialized yet");
     return false;
   }
-  if (debugPtr) {
-    debugPtr->printf("Deleting file: %s\n", path);
-  }
+  debugf("Deleting file: %s\n", path);
   if (LittleFS.remove(path)) {
-    if (debugPtr) {
-      debugPtr->println("File deleted");
-    }
+    debugln("File deleted");
     return true;
   }
   //else
-  if (debugPtr) {
-    debugPtr->println("Delete failed");
-  }
+  debugln("Delete failed");
   return false;
 }

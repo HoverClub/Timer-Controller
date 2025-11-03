@@ -13,15 +13,7 @@
    ESP8266 does not handle /2 or dst shift spec
    ESP8266 insists on DST name if have dst
 */
-#include <Arduino.h>
-#include "tzPosix.h"
-#include "DebugOut.h"
-#include "timerControl.h"
-#include "wifiConfig.h"
-
-// normally DEBUG is commented out
-//#define DEBUG
-static Stream* debugPtr = NULL;  // local to this file
+#include "main.h"
 
 // NOTE if start_month = 0 => no dst
 //struct posix_tz_data_struct {
@@ -56,19 +48,17 @@ void cleanUpPosixTZStr(char *tz_str, size_t tz_str_len) {
 }
 
 void cleanUpPosixTZStr(String& posixTZstr) {
-  if (debugPtr) {
-    debugPtr->print("cleanUpPosixTZStr:"); debugPtr->println(posixTZstr);
-  }
+  debug("cleanUpPosixTZStr:"); debugln(posixTZstr);
   struct posix_tz_data_struct posixData;
   posixTZDataFromStr(posixTZstr, posixData);
   buildPOSIXstr(posixData, posixTZstr);
 }
 
-void printPosixData(struct posix_tz_data_struct& posixData, Stream& out) {
-  out.print(" tzname:"); out.print(posixData.tzname);   out.print(" dsttzname:"); out.println(posixData.dsttzname);
-  out.print(" offset_min:"); out.println(posixData.offset_min); out.print(" dst_offset_min:"); out.println(posixData.dst_offset_min);
-  out.print(" start_month:"); out.print(posixData.start_month); out.print(" start_week:"); out.print(posixData.start_week);  out.print(" start_dow:"); out.print(posixData.start_dow);  out.print(" start_time_hr:"); out.print(posixData.start_time_hr);   out.print(" start_time_min:"); out.println(posixData.start_time_min);
-  out.print(" end_month:"); out.print(posixData.end_month);  out.print(" end_week:"); out.print(posixData.end_week); out.print(" end_dow:"); out.print(posixData.end_dow); out.print(" end_time_hr:"); out.print(posixData.end_time_hr);   out.print(" end_time_min:"); out.println(posixData.end_time_min);
+void printPosixData(struct posix_tz_data_struct& posixData) {
+  debug(" tzname:"); debug(posixData.tzname);   debug(" dsttzname:"); debugln(posixData.dsttzname);
+  debug(" offset_min:"); debugln(posixData.offset_min); debug(" dst_offset_min:"); debugln(posixData.dst_offset_min);
+  debug(" start_month:"); debug(posixData.start_month); debug(" start_week:"); debug(posixData.start_week);  debug(" start_dow:"); debug(posixData.start_dow);  debug(" start_time_hr:"); debug(posixData.start_time_hr);   debug(" start_time_min:"); debugln(posixData.start_time_min);
+  debug(" end_month:"); debug(posixData.end_month);  debug(" end_week:"); debug(posixData.end_week); debug(" end_dow:"); debug(posixData.end_dow); debug(" end_time_hr:"); debug(posixData.end_time_hr);   debug(" end_time_min:"); debugln(posixData.end_time_min);
 }
 
 // set values to zero/defaults, GMT0
@@ -92,12 +82,7 @@ void zero_posix_tz_data_struct(struct posix_tz_data_struct& posixData) {
 // Only used to set tzoffset from current time
 // NO DST here
 void setTZoffsetInMins(int min_offset) {
-#ifdef DEBUG
-  debugPtr = getDebugOut();
-#endif
-  if (debugPtr) {
-    debugPtr->print("setTZoffset:"); debugPtr->println(min_offset);
-  }
+  debug("setTZoffset:"); debugln(min_offset);
   int sign = 1;
   if (min_offset < 0) {
     sign = -1;
@@ -106,18 +91,12 @@ void setTZoffsetInMins(int min_offset) {
   zero_posix_tz_data_struct(posixTZ_Data); // remove dst
   posixTZ_Data.offset_min = min_offset;
   posixTZ_Data.dst_offset_min = min_offset;
-  if (debugPtr) {
-    printPosixData(posixTZ_Data, *debugPtr);
-  }
+//  printPosixData(posixTZ_Data);
   // fix up name
   String result;
   buildPOSIXstr(posixTZ_Data, result); // sets tzname and cleans up struct.
-  if (debugPtr) {
-    debugPtr->print(result);
-  }
-  if (debugPtr) {
-    printPosixData(posixTZ_Data, *debugPtr);
-  }
+  debug(result);
+  printPosixData(posixTZ_Data);
   //  saveTZstr(result.c_str()); // update file
   //  clearRebootFile();
   //  ESP.restart(); // see https://github.com/esp8266/Arduino/issues/1017  seems to work here
@@ -425,9 +404,7 @@ void buildPOSIXstr(struct posix_tz_data_struct & posixData, String & result) {
 
 // convert (int)hrOffset : (ont)mmOffset into signed offset_min
 int getMinsFromhhmm(int hhOffset, int mmOffset) {
-  //  if (debugPtr) {
-  //    debugPtr->print("getMinsFromhhmm hhOffset:"); debugPtr->print(hhOffset); debugPtr->print(" mmOffset:"); debugPtr->println(mmOffset);
-  //  }
+  debug("getMinsFromhhmm hhOffset:"); debug(hhOffset); debug(" mmOffset:"); debugln(mmOffset);
   int rtn = 0;
   if (hhOffset == 0) {
     rtn = mmOffset; // with sign if any
@@ -454,12 +431,7 @@ void posixTZDataFromStr(String & posixTZstr) { // parses POSIX tz str into its c
 
 // cleans up data at end
 void posixTZDataFromStr(String & posixTZstr, struct posix_tz_data_struct & posixTZData) {
-#ifdef DEBUG
-  debugPtr = getDebugOut();
-#endif
-  if (debugPtr) {
-    debugPtr->print("posixTZDataFromStr("); debugPtr->print(posixTZstr); debugPtr->println(")");
-  }
+  debug("posixTZDataFromStr("); debug(posixTZstr); debugln(")");
   String _posix = posixTZstr.c_str();
   _posix.trim();
   String tzname;
@@ -523,10 +495,6 @@ void posixTZDataFromStr(String & posixTZstr, struct posix_tz_data_struct & posix
       } else {
         if (hhOffset == 0) {
           hhOffset = atoi(_posix.c_str() + strpos);
-          //          if (debugPtr) {
-          //            debugPtr->print("hhOffset:"); debugPtr->println(hhOffset);
-          //            debugPtr->println(_posix.c_str() + strpos);
-          //          }
         }
       }
     }
@@ -538,10 +506,6 @@ void posixTZDataFromStr(String & posixTZstr, struct posix_tz_data_struct & posix
       } else {
         if (mmOffset == 0) {
           mmOffset = atoi(_posix.c_str() + strpos);
-          //          if (debugPtr) {
-          //            debugPtr->print("mmOffset:"); debugPtr->println(mmOffset);
-          //            debugPtr->println(_posix.c_str() + strpos);
-          //          }
         }
       }
     }
@@ -569,9 +533,6 @@ void posixTZDataFromStr(String & posixTZstr, struct posix_tz_data_struct & posix
         if (hhDstOffset == 0) {
           foundDstOffset = true;
           hhDstOffset = atoi(_posix.c_str() + strpos);
-          //          if (debugPtr) {
-          //            debugPtr->print("hhDstOffset:"); debugPtr->println(hhDstOffset);
-          //          }
         }
       }
     }
@@ -583,9 +544,6 @@ void posixTZDataFromStr(String & posixTZstr, struct posix_tz_data_struct & posix
         if (mmDstOffset == 0) {
           foundDstOffset = true;
           mmDstOffset = atoi(_posix.c_str() + strpos);
-          //          if (debugPtr) {
-          //            debugPtr->print("mmDstOffset:"); debugPtr->println(mmDstOffset);
-          //          }
         }
       }
     }
@@ -654,10 +612,7 @@ void posixTZDataFromStr(String & posixTZstr, struct posix_tz_data_struct & posix
     }
     strpos++;
   }
-  //  if (debugPtr) {
-  //    printPosixData(posixTZData, *debugPtr);
-  //  }
-
+  
   // now fill in offset_min and dst_offset_min
   // take the sign from the hr if non-zero else use mm sign
   posixTZData.offset_min = getMinsFromhhmm(hhOffset, mmOffset); // with sign if any
@@ -672,12 +627,8 @@ void posixTZDataFromStr(String & posixTZstr, struct posix_tz_data_struct & posix
     String dsttzname = _posix.substring(dstname_begin, dstname_end + 1);
     strlcpy(posixTZData.dsttzname, dsttzname.c_str(), sizeof(posixTZData.dsttzname)); // truncate if >19chars
   }
-  if (debugPtr) {
-    printPosixData(posixTZData, *debugPtr);
-  }
+//  printPosixData(posixTZData);
   cleanUpPosixData(posixTZData);
-  if (debugPtr) {
-    printPosixData(posixTZData, *debugPtr);
-  }
+  printPosixData(posixTZData);
 }
 

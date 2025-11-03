@@ -1,14 +1,15 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Controller</title>
+  <title>%NAME% Controller</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" href="data:,">
   <link rel="stylesheet" type="text/css" href="style.css">
 </head>
 <body>
+<h2>%NAME% Controller</h2>
 <div class="tab">
-  <button class="tablinks" id="setTZbtn" onclick="getControl(-1)">Timezone</button>
+  <button class="tablinks" id="setTZbtn" onclick="getControl(-1)">Settings</button>
   <span class="clock" id="clock">00:00:00</span>
 </div>
 
@@ -36,111 +37,8 @@
     <div class="card-grid">
       <div class="card">
         <div class="time">
-
-          <!-- add more timers if reqd by duplicating a module and incrementing all of its timer'# in 'Tn' -->
-
-          <div id="T1">
-            <div><label><strong>Timer 1</strong></label></div>
-            <div class="time-field">
-              <label for="T1O">ON at:</label>
-              <input type="time" id="T1O" name="T1O" value="0" min="00:00:00" max="24:00:00">
-              <label for="T1F"> OFF at:</label>
-              <input type="time" id="T1F" name="T1F" value="0" min="00:00:00" max="24:00:00">
-            </div>
-            <div id="T1sect">
-              <div class="time-field">
-                <label for="T1S">When sensor </label>
-                <select id="T1S" name="T1S"></select>
-                <span id="T1V"></span>
-              </div>
-              <div class="time-field">
-                <label for="T1L">is </label>
-                <select id="T1L" name="T1L">
-                  <option value="L">less than</option>
-                  <option value="M">more than</option>
-                </select>
-                <input type="number" id="T1T" name="T1T" value="0" min="-128" max="127">&#8451;
-              </div>
-              <hr>
-            </div>
-          </div>
-
-          <div id="T2">
-            <div><label><strong>Timer 2</strong></label></div>
-            <div class="time-field">
-              <label for="T2O">ON at:</label>
-              <input type="time" id="T2O" name="T2O" value="0" min="00:00:00" max="24:00:00">
-              <label for="T2F"> OFF at:</label>
-              <input type="time" id="T2F" name="T2F" value="0" min="00:00:00" max="24:00:00">
-            </div>
-            <div id="T2sect">
-              <div class="time-field">
-                <label for="T2S">When sensor </label>
-                <select id="T2S" name="T2S"></select>
-                <span id="T2V"></span>
-              </div>
-              <div class="time-field">
-                <label for="T2L">is </label>
-                <select id="T2L" name="T2L">
-                  <option value="L">less than</option>
-                  <option value="M">more than</option>
-                </select>
-                <input type="number" id="T2T" name="T2T" value="0" min="-128" max="127">&#8451;
-              </div>
-              <hr>
-            </div>
-          </div>
-
-          <div id="T3">
-            <div><label><strong>Timer 3</strong></label></div>
-            <div class="time-field">
-              <label for="T3O">ON at:</label>
-              <input type="time" id="T3O" name="T3O" value="0" min="00:00:00" max="24:00:00">
-              <label for="T3F"> OFF at:</label>
-              <input type="time" id="T3F" name="T3F" value="0" min="00:00:00" max="24:00:00">
-            </div>
-            <div id="T3sect">
-              <div class="time-field">
-                <label for="T3S">When sensor </label>
-                <select id="T3S" name="T3S"></select>
-                <span id="T3V"></span>
-              </div>
-              <div class="time-field">
-                <label for="T3L">is </label>
-                <select id="T3L" name="T3L">
-                  <option value="L">less than</option>
-                  <option value="M">more than</option>
-                </select>
-                <input type="number" id="T3T" name="T3T" value="0" min="-128" max="127">&#8451;
-              </div>
-              <hr>
-            </div>
-          </div>
-
-          <div id="T4">
-            <div><label><strong>Timer 4</strong></label></div>
-            <div class="time-field">
-              <label for="T4O">ON at:</label>
-              <input type="time" id="T4O" name="T4O" value="0" min="00:00:00" max="24:00:00">
-              <label for="T4F"> OFF at:</label>
-              <input type="time" id="T4F" name="T4F" value="0" min="00:00:00" max="24:00:00">
-            </div>
-            <div id="T4sect">
-              <div class="time-field">
-                <label for="T4S">When sensor </label>
-                <select id="T4S" name="T4S"></select>
-                <span id="T4V"></span>
-              </div>
-              <div class="time-field">
-                <label for="T4L">is </label>
-                <select id="T4L" name="T4L">
-                  <option value="L">less than</option>
-                  <option value="M">more than</option>
-                </select>
-                <input type="number" id="T4T" name="T4T" value="0" min="-128" max="127">&#8451;
-              </div>
-              <hr>
-            </div>
+          <div id="timers-container">
+            <!-- Timer blocks will be injected here by timer.js -->
           </div>
 
           <button type="submit" class="button" onclick="save();">Save Changes</button>
@@ -150,12 +48,42 @@
   </div>
 </div>
 
+<!-- Timer Template -->
+<template id="timer-template">
+  <div class="timer-block" id="T{t}">
+    <div><label><strong>Timer {t}</strong></label></div>
+    <div class="time-field">
+      <label for="T{t}O">ON at:</label>
+      <input type="time" id="T{t}O" name="T{t}O" value="00:00" min="00:00" max="23:59">
+      <label for="T{t}F"> OFF at:</label>
+      <input type="time" id="T{t}F" name="T{t}F" value="00:00" min="00:00" max="23:59">
+    </div>
+    <div class="sensor-section" id="T{t}sect">
+      <div class="time-field">
+        <label for="T{t}S">When sensor </label>
+        <select id="T{t}S" name="T{t}S"></select>
+        <span id="T{t}V"></span>
+      </div>
+      <div class="time-field">
+        <label for="T{t}L">is </label>
+        <select id="T{t}L" name="T{t}L">
+          <option value="L">less than</option>
+          <option value="M">more than</option>
+        </select>
+        <input type="number" id="T{t}T" name="T{t}T" value="0" size="6" min="-32768" max="32767">&#8451;
+         +/-<input type="number" id="T{t}H" name="T{t}H" value="0" size="3" min="0" max="127">
+      </div>
+      <hr>
+    </div>
+  </div>
+</template>
+
 <div id="setTZ" class="tabcontent">
   <div class="content">
       <div class="card-grid">
         <div class="card">
-          <form action="/setTime">
-            <div class="time">
+          <div class="time">
+            <form action="/setTime">
               <label><strong>Current Time</strong></label>
               <div class="time-field"><input type="time" id="TIME" name="TIME" value="%TI%" min="00:00" max="24:00:00" required></div>
               <div class="info-txt">Setting the time overrides any Time Zone settings</div>
@@ -176,13 +104,14 @@
               <div><button type="submit" name="RESET" class="button" style ="font-size: 15px;">Reset Default Time Zone</button></div>
               <div class="info-txt" id="tz_str_set_corrected">%TS%</div>
               <br>
-            </div>
-          </form>
-          <div>
-            <a href="/download" class="button">Download Config File</a>
-            <form method="POST" action="/upload" enctype="multipart/form-data">
-              <br>Upload config file:<input type="file" name="bin" accept=".bin" onchange="form.submit();"/>
             </form>
+            <div>
+              <a href="/download" class="button">Download Config File</a>
+              <form method="POST" action="/upload" enctype="multipart/form-data" style="display: inline-block; vertical-align: middle; margin-top: 1em;">
+                <input type="file" id="file-upload" name="bin" accept=".bin" onchange="form.submit();" style="display: none;">
+                <label for="file-upload" class="button">Upload Config File</label>
+              </form>
+            </div>
           </div>
         </div>
       </div> 
@@ -190,20 +119,6 @@
   </div>
 </div>
 
-<!-- need to include constants in index.html as js file may not get reloaded after a post! -->
-<script>var 
-  currCtrl = %C%;
-  const maxCtrls = %MAX_CTRLS%;
-  const maxTimers = %MAX_TIMERS%;
-  const maxWebTimers = %MAX_WEB_TIMERS%;
-  const maxStats = %MAX_STATS%;
-  const statType = [%STAT_TYPES%]; // 0 = analog, 1 = digital sensor
-  const haveSNTP = %HAVE_SNTP%;
-  var errMsg = "";
-  var eCntr = 0;
-</script>
-
 <script type="text/javascript" src="timer.js"></script>
 </body>
 </html>
-

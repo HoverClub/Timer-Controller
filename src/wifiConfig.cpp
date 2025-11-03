@@ -7,41 +7,11 @@
    Provide this copyright is maintained.
 
 */
-#include "wifiConfig.h"
-#include "LittleFSsupport.h"
-#include "DebugOut.h"
-#include <ESP8266WiFi.h>
-#include <WiFiClient.h>
-#include <ESP8266WebServer.h>
-#include <millisDelay.h>
-#include <SafeString.h>
-#include <Adafruit_GFX.h>
-//#include <Adafruit_SSD1306.h> //0.96" OLED
-#include <Adafruit_SH1106.h>  // 1.3" OLED
-#include <qrcode.h>
-
-
-// normally DEBUG is commented out
-//#define DEBUG
-static Stream* debugPtr = NULL;  // local to this file
-
+#include "main.h"
 
 // 128x64 OLED on I2C SDA - IO4, SCL - IO5 (D1 & D2 on D1 Mini board!)
-// there is a small gap between the sections meaning a QR code can't display white over the gap
 // Adafruit_SSD1306 oled(OLED_WIDTH, OLED_HEIGHT, &Wire, -1); .. 0.96" OLED
 Adafruit_SH1106 oled(-1);     // 1.3" OLED
-
-// replace these with your local network's SSID and password.
-// they will be useed as default if nothing valid has been saved in settings.
-#define wifiSSID "" 
-#define wifiPassword ""
-
-/// access point settings
-#define wifiWebConfigPASSWORD ""
-#define wifiWebConfigAP "Controller"
-static  IPAddress local_ip = IPAddress(10, 1, 1, 1);
-static  IPAddress gateway_ip = IPAddress(10, 1, 1, 1);
-static  IPAddress subnet_ip = IPAddress(255, 255, 255, 0);
 
 millisDelay endConfigTimer;
 const unsigned long END_CONFIG_MS = 5ul * 60 * 1000; // 5mins to make first connection and show wifi config webpage
@@ -60,23 +30,19 @@ static void setInitialWifiConfig() {
   sfPW = wifiPassword;
 }
 
-void printWifConfig(struct Wifi_CONFIG_storage_struct& storage, Stream& out) {
-  out.print("ssid:");
-  out.println(storage.ssid);
-  out.print("password:");
-  out.println(storage.password);
+void printWifConfig(struct Wifi_CONFIG_storage_struct& storage) {
+  debug("ssid:");
+  debugln(storage.ssid);
+  debug("password:");
+  debugln(storage.password);
 }
 
-static void handleNotFound();
-static void handleRoot();
-static void handleConfig();
 static void setupAP(const char* ssid_wifi, const char* password_wifi);
 static bool saveWifiConfig(struct Wifi_CONFIG_storage_struct& storagePtr);
+static AsyncWebServer webserver(80);  // this just sets portNo nothing else happens until begin() is called
 String urlDecode(const String& text); // from ESP8266 webserver code
+//  static ESP8266WebServer webserver(80);  // this just sets portNo nothing else happens until begin() is called
 
-static ESP8266WebServer webserver(80);  // this just sets portNo nothing else happens until begin() is called
-
-static bool inConfigMode = false;
 cSF(sfStrongestAP, MAX_SSID_LEN);
 
 /**
@@ -84,39 +50,37 @@ cSF(sfStrongestAP, MAX_SSID_LEN);
   if called twice the second call will startup AP (since file will exist), if not already started
 */
 
+bool inConfigMode = false; // made non-static to be accessible from other files if needed
+
 struct Wifi_CONFIG_storage_struct*  initializeWifiConfig() {
-#ifdef DEBUG
-  debugPtr = getDebugOut();
-#endif
-  if (debugPtr) {
-    debugPtr->print("initializeWifiConfig() "); debugPtr->println();
-  }
-  if (inConfigMode) {
-    if (debugPtr) {
-      debugPtr->print("initializeWifiConfig(), AP already started, just return "); debugPtr->println();
-    }
-    return &storage; // AP already started
-  }
+  debug(F("initializeWifiConfig() ")); debugln();
+
   if (!initializeFS()) {
-    if (debugPtr) {
-      debugPtr->print("LittleFS initialize failed "); debugPtr->println();
-    }
+    debug(F("LittleFS initialize failed ")); debugln();
     setInitialWifiConfig();
     return &storage;
   }
-
-  if (initConfigCalled) { // this is the second call start AP
-    setupAP(wifiWebConfigAP, wifiWebConfigPASSWORD); // sets inConfigMode
-    return &storage; // loaded by setupAP
-  } else {
-    initConfigCalled = true; // start AP on next call
-    loadWifiConfig(); // loads global storage // set default if missing
+  
+  if (!initConfigCalled) {
+    initConfigCalled = true;
+    loadWifiConfig(); // loads global storage, or sets default if missing
+    // If the file was missing, loadWifiConfig returns defaults, so we save them.
     saveWifiConfig(storage); // save
     loadWifiConfig(); // reload global
     return &storage; // loaded by setupAP
   }
+  return &storage; // loaded by setupAP
 }
 
+/** call this in loop() every loop()
+ * Starts the Access Point for configuration.
+ */
+void startConfigAP() {
+  if (inConfigMode) {
+    return; // Already in config mode
+  }
+  setupAP(wifiWebConfigAP, wifiWebConfigPASSWORD); // sets inConfigMode
+}
 /** call this in loop() every loop()
   returns true if in config mode
   in loop() have at the top
@@ -124,13 +88,12 @@ struct Wifi_CONFIG_storage_struct*  initializeWifiConfig() {
   if (handleWifiConfig()) {
   return; // skip rest of the loop
   }
+  Reboots the device is the configTimer has expired
 */
 bool handleWifiConfig() {
   if (!inConfigMode) {
     return false; // not doing wifi config so just ignore this call
   }
-  // else in config mode
-  webserver.handleClient();
   if (endConfigTimer.justFinished()) {
     ESP.restart(); 
   }
@@ -139,107 +102,71 @@ bool handleWifiConfig() {
 
 // loads global storage and returns pointer to it
 static struct Wifi_CONFIG_storage_struct* loadWifiConfig() {
-#ifdef DEBUG
-  debugPtr = getDebugOut();
-#endif
   setInitialWifiConfig();
   if (!initializeFS()) {
-    if (debugPtr) {
-      debugPtr->println("FS failed to initialize");
-    }
-    if (debugPtr) {
-      debugPtr->println("set config");
-      printWifConfig(storage, *debugPtr);
-    }
+    debugln(F("FS failed to initialize"));
+    debugln("set config");
+    printWifConfig(storage);
     return &storage; // returns default if cannot open FS
   }
   if (!LittleFS.exists(wifiConfigFileName)) {
-    if (debugPtr) {
-      debugPtr->print(wifiConfigFileName); debugPtr->print(" missing.");
-    }
-    if (debugPtr) {
-      debugPtr->println("set config");
-      printWifConfig(storage, *debugPtr);
-    }
+    debug(wifiConfigFileName); debug(" missing.");
+    debugln("set config");
+    printWifConfig(storage);
     return &storage; // returns default if missing
   }
   // else load config
   File f = LittleFS.open(wifiConfigFileName, "r");
   if (!f) {
-    if (debugPtr) {
-      debugPtr->print(wifiConfigFileName); debugPtr->print(" did not open for read.");
-      debugPtr->println("set config");
-      printWifConfig(storage, *debugPtr);
-    }
+    debug(wifiConfigFileName); debug(F(" did not open for read."));
+    debugln("set config");
+    printWifConfig(storage);
     return &storage; // returns default wrong size
   }
   if (f.size() != sizeof(storage)) {
-    if (debugPtr) {
-      debugPtr->print(wifiConfigFileName); debugPtr->print(" wrong size.");
-    }
+    debug(wifiConfigFileName); debug(" wrong size.");
     f.close();
-    if (debugPtr) {
-      debugPtr->println("set config");
-      printWifConfig(storage, *debugPtr);
-    }
+    debugln("set config");
+    printWifConfig(storage);
     return &storage; // returns default wrong size
   }
   int bytesIn = f.read((uint8_t*)(&storage), sizeof(storage));
   if (bytesIn != sizeof(storage)) {
-    if (debugPtr) {
-      debugPtr->print(wifiConfigFileName); debugPtr->print(" wrong size read in.");
-    }
+    debug(wifiConfigFileName); debug(" wrong size read in.");
     setInitialWifiConfig(); // again
     f.close();
-    if (debugPtr) {
-      debugPtr->println("set config");
-      printWifConfig(storage, *debugPtr);
-    }
+    debugln("set config");
+    printWifConfig(storage);
     return &storage;
   }
   f.close();
   // else return settings
-  if (debugPtr) {
-    debugPtr->println("Loaded config");
-    printWifConfig(storage, *debugPtr);
-  }
+  debugln("Loaded config");
+  printWifConfig(storage);
   return &storage;
 }
 
 static bool saveWifiConfig(struct Wifi_CONFIG_storage_struct& storage) {
-#ifdef DEBUG
-  debugPtr = getDebugOut();
-#endif
   if (!initializeFS()) {
-    if (debugPtr) {
-      debugPtr->println("FS failed to initialize");
-    }
+    debugln(F("FS failed to initialize"));
     return false;
   }
   // else save config
   File f = LittleFS.open(wifiConfigFileName, "w"); // create/overwrite
   if (!f) {
-    if (debugPtr) {
-      debugPtr->print(wifiConfigFileName); debugPtr->print(" did not open for write.");
-    }
+    debug(wifiConfigFileName); debug(F(" did not open for write."));
     return false; // returns default wrong size
   }
   int bytesOut = f.write((uint8_t*)(&storage), sizeof(struct Wifi_CONFIG_storage_struct));
   if (bytesOut != sizeof(struct Wifi_CONFIG_storage_struct)) {
-    if (debugPtr) {
-      debugPtr->print(wifiConfigFileName); debugPtr->print(" write failed.");
-    }
+    debug(wifiConfigFileName); debug(" write failed.");
     return false;
   }
   // else return settings
   f.close(); // no rturn
-  if (debugPtr) {
-    debugPtr->print(wifiConfigFileName); debugPtr->print(" config saved.");
-    //    printWifConfig(storage, *debugPtr);
-  }
+  debug(wifiConfigFileName); debug(" config saved.");
   return true;
 }
-
 
 /**
    will return name of AP with strongest signal found or return empty string if none found
@@ -249,33 +176,82 @@ static void scanForStrongestAP(SafeString &result) {
   // WiFi.scanNetworks will return the number of networks found
   int8_t n = WiFi.scanNetworks();
   if (n <= 0) {
-    if (debugPtr) {
-      debugPtr->println("Wifi network scan failed");
-    }
+    debugln(F("Wifi network scan failed"));
     return;
   }
-  if (debugPtr) {
-    debugPtr->println("Scan done");
-    debugPtr->print("Found ");   debugPtr->print(n);    debugPtr->println(" networks");
-  }
+  debugf("Scan done - found %i networks\n", n);
   int32_t maxRSSI = -10000;
   for (int8_t i = 0; i < n; ++i) {
-    //const char * ssid_scan = WiFi.SSID_charPtr(i);
     int32_t rssi_scan = WiFi.RSSI(i);
     if (rssi_scan > maxRSSI) {
       maxRSSI = rssi_scan;
       String ssid = WiFi.SSID(i);
       result = ssid.c_str();
     }
-    if (debugPtr) {
-      debugPtr->print(result);
-      debugPtr->print(" ");
-      debugPtr->println(rssi_scan);
-    }
+    debugf(" %s RSSI %idBm\n", result.c_str(), rssi_scan);
     delay(0);
   }
 }
 
+/*
+   process index.html template
+*/
+static String processorConf(const String& var) {
+  String rtnString = "";
+
+  // set current visible tab
+  if (var == "1") {
+    rtnString = sfStrongestAP.c_str();
+  } else if (var == "2") {
+    rtnString = storage.password;
+  } else if (var == "NAME") {
+    rtnString =  String(CONTROLLER_NAME);
+    rtnString.replace("_", " ");
+  }
+  return rtnString;
+}
+
+static void handleConfig(AsyncWebServerRequest *request) {
+  int params = request->params();
+  cSFA(sfSSID, storage.ssid);
+  cSFA(sfPW, storage.password);
+  if (params > 0) {
+    for (int i = 0; i < params; i++) {
+      const AsyncWebParameter* param = request->getParam(i);
+      if (param && param->isPost()) {
+        String decoded;
+        switch (param->name().charAt(0)) {
+          case '1': // BT idnum - dropdown so no parsing
+            decoded = urlDecode(param->value()); // result is always <= source so just copy over
+            decoded.trim();
+            sfSSID = decoded.c_str();
+          break;
+          case '2': // PIN
+            decoded = urlDecode(param->value()); // result is always <= source so just copy over
+            decoded.trim();
+            if (decoded != "*") {
+              // update it
+              sfPW = decoded.c_str();
+            }
+          break;
+        }
+      }
+    }
+    debugln();
+    printWifConfig(storage);
+
+    // store the settings
+    if (!saveWifiConfig(storage)) {
+      loadWifiConfig(); // re-initialize
+    }
+    endConfigTimer.start(RESTART_AFTER_CONFIG_MS); // restart in 30sec
+  } // else if no args just return current settings
+
+  delay(0);
+  loadWifiConfig();
+  debugln();
+  printWifConfig(storage);
+}
 
 /**
    sets up AP and loads current wifi settings
@@ -283,46 +259,31 @@ static void scanForStrongestAP(SafeString &result) {
 static void setupAP(const char* ssid_wifi, const char* password_wifi) {
   /**
     Start scan WiFi networks available
-    @param async         run in async mode
-    @param show_hidden   show hidden networks
-    @param channel       scan only this channel (0 for all channels)
     @param ssid*         scan for only this ssid (NULL for all ssid's)
     @return Number of discovered networks
   */
   inConfigMode = true; // in config mode
-  if (debugPtr) {
-    debugPtr->println(F("Setting up Access Point for WifiWebConfig"));
-  }
+  debugln(F("Setting up Access Point for Web Config"));
+  scanForStrongestAP(sfStrongestAP);  // get best AP before we enable our AP!
   // connect to temporary wifi network for setup
-
-  scanForStrongestAP(sfStrongestAP);
-  if (debugPtr) {
-    debugPtr->println(F("configure WifiWebConfig"));
-  }
-
-  if (debugPtr) {
-    debugPtr->println(F("Access Point setup"));
-  }
-  WiFi.softAPConfig(local_ip, gateway_ip, subnet_ip);
+  WiFi.softAPConfig(LOCAL_IP, GATEWAY_IP, SUBNET_IP);
   WiFi.softAP(ssid_wifi, password_wifi);
-
-  if (debugPtr) {
-    debugPtr->println("done");
-    IPAddress myIP = WiFi.softAPIP();
-    debugPtr->print(F("AP IP address: "));
-    debugPtr->println(myIP);
-  }
+  debugf("Access Point %s setup - IP address: %s\n", ssid_wifi,  WiFi.softAPIP().toString().c_str());
   delay(10);
-  webserver.on ( "/", handleRoot );
-  webserver.on ( "/config", handleConfig );
-  webserver.onNotFound ( handleNotFound );
+
+  webserver.on("/", HTTP_GET, [](AsyncWebServerRequest * request) {
+    if (endConfigTimer.justFinished()) ESP.restart();
+    request->send(LittleFS, "/indexc.html", String(), false, processorConf);  
+    });
+  webserver.on("/config", HTTP_POST, [](AsyncWebServerRequest *request)
+      { handleConfig(request); request->send(LittleFS, "/config.html", String(), false, processorConf); 
+    });
+
   webserver.begin();
-  if (debugPtr) {
-    debugPtr->println ( "HTTP webserver started" );
-  }
+
+  debugln ( "HTTP webserver started" );
   loadWifiConfig(); // sets global storage
   endConfigTimer.start(END_CONFIG_MS);
-
   // display QR code for AP
   // wifi QRcode format =  WIFI:T:WPA;S:myNetworkName;P:myPassword;;
   String sAP = "WIFI:S:" + String(ssid_wifi) + ";";
@@ -340,146 +301,6 @@ static void setupAP(const char* ssid_wifi, const char* password_wifi) {
   oled.println("10.1.1.1");
   oled.display();              // display on OLED
 }
-
-static void handleConfig() {
-  // set defaults
-  
-  if (webserver.args() > 0) {
-    if (debugPtr) {
-      String message = "Config results\n\n";
-      message += "URI: ";
-      message += webserver.uri();
-      message += "\nMethod: ";
-      message += ( webserver.method() == HTTP_GET ) ? "GET" : "POST";
-      message += "\nArguments: ";
-      message += webserver.args();
-      message += "\n";
-      for ( uint8_t i = 0; i < webserver.args(); i++ ) {
-        message += " " + webserver.argName ( i ) + ": " + webserver.arg ( i ) + "\n";
-      }
-      debugPtr->println(message);
-      debugPtr->println();
-    }
-
-    cSFA(sfSSID, storage.ssid);
-    cSFA(sfPW, storage.password);
-
-    uint8_t numOfArgs = webserver.args();
-    uint8_t i = 0;
-    for (; (i < numOfArgs); i++ ) {
-      // check field numbers
-      if (webserver.argName(i)[0] == '1') {
-        String decoded = urlDecode(webserver.arg(i)); // result is always <= source so just copy over
-        decoded.trim();
-        sfSSID = decoded.c_str();
-      } else if (webserver.argName(i)[0] == '2') {
-        String decoded = urlDecode(webserver.arg(i)); // result is always <= source so just copy over
-        decoded.trim();
-        if (decoded != "*") {
-          // update it
-          sfPW = decoded.c_str();
-        }
-        // if password all blanks make it empty
-      }
-    }
-
-    if (debugPtr) {
-      debugPtr->println();
-      printWifConfig(storage, *debugPtr);
-    }
-
-    // store the settings
-    if (!saveWifiConfig(storage)) {
-      loadWifiConfig(); // re-initialize
-    }
-  } // else if no args just return current settings
-
-  delay(0);
-  loadWifiConfig();
-  if (debugPtr) {
-    debugPtr->println();
-    printWifConfig(storage, *debugPtr);
-  }
-  String rtnMsg = "<html>"
-                  "<head>"
-                  "<title>Controler - Wifi Network Config</title>"
-                  "<meta charset=\"utf-8\" />"
-                  "<meta name=viewport content=\"width=device-width, initial-scale=1\">"
-                  "</head>"
-                  "<body>"
-                  "<h2>Controller Wifi Network Config Settings saved.</h2><br>Power cycle to connect to ";
-  if (storage.password[0] == '\0') {
-    rtnMsg += "the open network ";
-  }
-  rtnMsg += "<b>";
-  rtnMsg += storage.ssid;
-  rtnMsg += "</b>";
-
-  rtnMsg += "<p>";
-  rtnMsg += "<b>You also need to reconnect this device<br> to the ";
-  rtnMsg += storage.ssid;
-  rtnMsg += " network</b>";
-  rtnMsg += "<p>";
-  rtnMsg += " Controller will auto restart in 30 seconds</b>";
-  rtnMsg += "</body>";
-  rtnMsg += "</html>";
-
-  webserver.send ( 200, "text/html", rtnMsg );
-  endConfigTimer.start(RESTART_AFTER_CONFIG_MS); // restart in 30sec
-}
-
-
-static void handleRoot() {
-  endConfigTimer.start(END_CONFIG_MS); // allow another 5mins stop 5min time out on first connection
-  String msg;
-  msg = "<html>"
-        "<head>"
-        "<title>Controler Wifi Network Config</title>"
-        "<meta charset=\"utf-8\" />"
-        "<meta name=viewport content=\"width=device-width, initial-scale=1\">"
-        "</head>"
-        "<body>"
-        "<h2>Controler Wifi Network Config</h2>"
-        "<p>Use this form to configure the controller to connect to your Wifi network.<br>"
-        "<i>Leading and trailing spaces are trimmed.</i></p>"
-        "<form class=\"form\" method=\"post\" action=\"/config\" >"
-        "<p class=\"name\">"
-        "<label for=\"name\">Network name (SSID)</label><br>"
-        "<input type=\"text\" name=\"1\" id=\"ssid\" placeholder=\"wifi network name\"  required "; // field 1
-
-  if (!sfStrongestAP.isEmpty()) {
-    msg += " value=\"";
-    msg += sfStrongestAP.c_str();
-    msg += "\" ";
-  }
-  msg += " />"
-         "<p class=\"password\">"
-         "<label for=\"password\">Password for WEP/WPA/WPA2 (enter a space if there is no password, i.e. OPEN)<br>"
-         "To use existing password leave as * </label><br>"
-         "<input type=\"text\" name=\"2\" id=\"password\" placeholder=\"wifi network password\" autocomplete=\"off\" required "; // field 2
-  if (storage.password[0] != '\0') {
-    msg += " value=\"";
-    msg += "*"; //storage.password[0];
-    msg += "\" ";
-  }
-  msg += " />"
-         "</p>"
-         "<p class=\"submit\">"
-         "<input type=\"submit\" style=\"font-size:25px;\" value=\"Configure\"  />"
-         "</p>"
-         "</form>"
-         "The control will auto-restart in 5 mins if current config not changed"
-         "</body>"
-         "</html>";
-
-  webserver.send ( 200, "text/html", msg );
-}
-
-
-static void handleNotFound() {
-  handleRoot();
-}
-
 
 String urlDecode(const String& text) {
   String decoded;
@@ -533,7 +354,7 @@ void generateQRCode(const char* text) {
 }
 
 void startOLED() {
-  // oled.begin(SSD1306_SWITCHCAPVCC, 0x3C, true) 
+  // oled.begin(SSD1306_SWITCHCAPVCC, 0x3C, true) // .. OR ...
   oled.begin(SH1106_SWITCHCAPVCC, 0x3C);
   oled.clearDisplay(); // clear display
 }
@@ -553,4 +374,8 @@ void printIPconfig(const char* nIP) { // display IP address screen & QR code
   oled.println(tStr.substring(10));
   
   oled.display();              // display on OLED
+}
+
+bool isWifiConfigMode() {
+  return inConfigMode;
 }

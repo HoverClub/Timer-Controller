@@ -11,6 +11,15 @@
   1. only submit timer settings & control name
   2. update control name in it's tab if changed
 */
+  var currCtrl = %C%;
+  const maxCtrls = %MAX_CTRLS%;
+  const maxTimers = %MAX_TIMERS%;
+  const maxStats = %MAX_STATS%;
+  const statNames = [%STAT_NAMES%]; // stat descriptors
+  const haveSNTP = %HAVE_SNTP%;
+  var errMsg = "";
+  var eCntr = 0;
+
 // save control or timer values
 // if val == "" then it's a timer save, otherwise val == setting
 async function save(val) {
@@ -28,6 +37,7 @@ async function save(val) {
         url += "T" + t + "O=" + document.getElementById("T" + t + "O").value + "&";
         url += "T" + t + "F=" + document.getElementById("T" + t + "F").value + "&";
         url += "T" + t + "L=" + document.getElementById("T" + t + "L").value + "&";
+        url += "T" + t + "H=" + document.getElementById("T" + t + "H").value + "&";
         url += "T" + t + "T=" + document.getElementById("T" + t + "T").value + "&";
         url += "T" + t + "S=" + document.getElementById("T" + t + "S").value + "&";
     }
@@ -71,8 +81,8 @@ function setTabBtnName(c, name) { // set tab on if on or boost & update name
 }
 
 // update the on/off state of the controls in the tabs
-// and the onoff indicator in the control IF it is the current control 
-async function getStatus() {
+// and the on/off indicator in the control IF it is the current control 
+async function getStatus(all) {
   // show any error msg for 4 secs
   if (eCntr == 0) {
     if (errMsg) {
@@ -84,19 +94,23 @@ async function getStatus() {
   } else
     eCntr--;
 
-  const response = await fetch("getStatus");
+  if (all)
+    response = await fetch("getAllStatus"); // inc. names!
+  else
+    response = await fetch("getStatus");
+  
   if (response.ok) {
     var status = await response.json();
 
     if (status) { // parsed OK
-      if (status.T) {
+      if (status.T !== undefined) {
         const t = new Date(Number(status.T) * 1000)
         .toISOString()
         .slice(11, 19);
         document.getElementById("clock").innerText = t; // adding time to the div
       }
 
-      if (status.C) {
+      if (status.C !== undefined) {
         for (var c = 0; c < maxCtrls; c++) {
           if (c == currCtrl) {
             // update any on/off indicator in the current control tab 
@@ -108,10 +122,12 @@ async function getStatus() {
                 if (document.getElementById("T" + t + "S").value == -1)
                   document.getElementById("T" + t + "V").innerHTML = "";
                 else
-                  document.getElementById("T" + t + "V").innerHTML = " = " + status.V[t];
+                  document.getElementById("T" + t + "V").innerHTML = "(curr " + status.V[t] + ")";
             }
           }
           setTabBtn(c, status.C[c].I); // update ctrltab color for on/off
+          if (all && status.C[c].N !== undefined)
+            setTabBtnName(c, status.C[c].N); // update name if supplied
         }
       }
     }
@@ -179,7 +195,7 @@ async function getControl(ctrlNum) {
       if (response.ok) {
         var ctrl = await response.json();
         // extract json control parameter values and copy into html for control
-        if (ctrl && ctrl.C == ctrlNum) {  // parsed OK and ID matches what we asked for!
+        if (ctrl && ctrl.C == ctrlNum) {  // parsed OK and ID matches the ctrl we asked for!
           
           // time
           if (ctrl.T)
@@ -196,33 +212,30 @@ async function getControl(ctrlNum) {
           setTabBtnName(ctrl.C, ctrl.N);
 
           // timers
-          for (var t = 1; t < maxTimers; t++) {
+          for (var t = 1; t < maxTimers; t++) { // max timer block
             var timer = ctrl.timers[t];
             var id = "T" + t;
-            if (t < maxTimers) {
-              document.getElementById(id + "O").value = timer.O;
-              document.getElementById(id + "F").value = timer.F;
-              if (maxStats) {
-                document.getElementById(id + "T").value = timer.T;
-                if (timer.L == 'L') {
-                  document.getElementById(id + "L").options[0].selected = 1;
-                  document.getElementById(id + "L").options[1].selected = 0;
-                } else { // must be morethan - 2nd option
-                  document.getElementById(id + "L").options[0].selected = 0;
-                  document.getElementById(id + "L").options[1].selected = 1;
-                }
-                // stat options, option[0] is -1 for none
-                var opt = document.getElementById(id + "S").options;
-                for (var c = 0; c < opt.length; c++) // clear any selected options
-                  opt[c].selected = 0;
-                opt[timer.S + 1].selected = 1;
-              } else // hide all temp settings cos no stats
-                document.getElementById(id + "sect").style.display = "none";
-            } else // disable unused timer blocks
-              document.getElementById(id).style.display = "none";
+            document.getElementById(id + "O").value = timer.O.substring(0,5); // HH:mm
+            document.getElementById(id + "F").value = timer.F;
+            if (maxStats) {
+              document.getElementById(id + "T").value = timer.T;
+              document.getElementById(id + "H").value = timer.H;
+              if (timer.L == 'L') {
+                document.getElementById(id + "L").options[0].selected = 1;
+                document.getElementById(id + "L").options[1].selected = 0;
+              } else { // must be morethan - 2nd option
+                document.getElementById(id + "L").options[0].selected = 0;
+                document.getElementById(id + "L").options[1].selected = 1;
+              }
+              // stat options, option[0] is -1 for none
+              var opt = document.getElementById(id + "S").options;
+              for (var c = 0; c < opt.length; c++) // clear any selected options
+                opt[c].selected = 0;
+              opt[timer.S + 1].selected = 1;
+            } else // hide all temp settings cos no stats avail
+              document.getElementById(id + "sect").style.display = "none";
           }
         }
-//        getStatus(); // update tabs and temps
       } else {
         errMsg = "ERROR - unable to load control #" + ctrlNum;
       }
@@ -234,6 +247,7 @@ async function getControl(ctrlNum) {
 
 // startup stuff
 window.onload = function() { 
+  const timerTemplate = document.getElementById('timer-template');
   // construct tabs for all control available
   var tz = document.getElementById("setTZbtn");
   for (var c = 0; c < maxCtrls; c++) {
@@ -244,20 +258,22 @@ window.onload = function() {
     btn.innerHTML = "Control " + c;
     tz.insertAdjacentElement("beforebegin", btn);
   }
-  // construct stat options list for each timer html
-  for (var t = 1; t < (1 + maxWebTimers); t++) {
-    if (maxStats) {
-      if (t < maxTimers) {
-        for (var o = -1; o < maxStats; o++) {
-          var option = document.createElement("option");
-          option.value = o; // start at -1 for none
-          option.text = (o == -1) ? "none" : (o + ((statType[o] == 1) ? " digital" : " analog"));
-          document.getElementById("T" + t + "S").add(option);
-        }
-      } else
-        document.getElementById("T" + t).style.display = "none"; // disable invalid timer blks
-    }
+  // construct timer blocks and stat options list for each timer html
+  const timersContainer = document.getElementById('timers-container');
+  for (var t = 1; t < maxTimers; t++) {
+    const timerClone = timerTemplate.content.cloneNode(true);
+    // Replace placeholders like {t} with the actual timer number
+    const timerHtml = new XMLSerializer().serializeToString(timerClone).replace(/\{t\}/g, t);
+    timersContainer.insertAdjacentHTML('beforeend', timerHtml);
 
+    if (maxStats) {
+      for (var o = -1; o < maxStats; o++) {
+        var option = document.createElement("option");
+        option.value = o; // start at -1 for none
+        option.text = (o == -1) ? "none" : statNames[o];
+        document.getElementById("T" + t + "S").add(option);
+      }
+    }
   }
 
   // listen for return keypress on control form
@@ -266,6 +282,7 @@ window.onload = function() {
   });  
 
   getControl(currCtrl);
+  getStatus(true); // get status of all ctrls inc. names
 
-  setInterval(getStatus, 2000); // refrsh timer status every 2 secs
+  setInterval(getStatus, 2000, false); // refresh timer status every 2 secs
 }

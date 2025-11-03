@@ -9,10 +9,9 @@
    Provide this copyright is maintained.
 */
 
-#include <Arduino.h>
-#include "ctrlDefs.h"
+#include "main.h"
 
-const char timerConfigFileName[] = "/timerCfg.bin";  // binary file
+const char timerConfigFileName[MAX_NAME_LEN + 9] = "/" CONTROLLER_NAME "_cfg.bin";  // binary file
 
 timerConfig_struct* loadTimerConfig();
 void initializeSNTP(); // initializes and starts SNTP server, stops it after first update
@@ -32,7 +31,7 @@ bool saveTimerConfig(timerConfig_struct& timerConfig);
 void setTZfromPOSIXstr(const char* tz_str); // sets flag to save config
 bool saveConfigIfNeeded(); // saves any TZ config changes returns true if save happened
 
-void initOutputs();
+void initGPIO ();
 void setOutputs();
 void readTemps();
 
@@ -54,16 +53,21 @@ char * getCtrlName(int c);
 // timer set
 void setOnTime(int c, int t, int val);
 void setOffTime(int c, int t, int val);
-void setTemp(int c, int t, int val);
+void setTemp(int c, int t, int16_t val);
 void setLess(int c, int t, char val);
+void setHyst(int c, int t, uint8_t val);
 void setStat(int c, int t, int val);
+#ifdef ESP32
+  void pollSntp();
+#endif
 
 char * getCtrlName(int c);
 int getOnTime_mins(int c, int t);
 int getOffTime_mins(int c, int t);
 int8_t getTemp(int c, int t);
-int8_t getCurrTemp(int c, int t);
+int16_t getCurrStatVal(int c, int t);
 char getLess(int c, int t);
+uint8_t getHyst(int c, int t);
 int8_t getStat(int c, int t);
 char getSetting(int c);
 void startRebootTimer();

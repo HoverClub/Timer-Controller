@@ -9,8 +9,8 @@
    Provide this copyright is maintained.
 
 */
-#include <FS.h>
-#include <LittleFS.h>
+#include "main.h"
+
 
 /* ===================
 r   Open a file for reading. If a file is in reading mode, then no data is deleted if a file is already present on a system.
@@ -28,7 +28,6 @@ bool initializeFS(); // returns false if fails
 bool renameFile(const char * path1, const char * path2); // returns false if fails
 bool deleteFile(const char * path); // returns false if fails
 void listDir(const char * dirname); // list to debugOut
-void listDir(const char * dirname, Stream& out); // list to out Stream
 
 
 #endif

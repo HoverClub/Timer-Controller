@@ -9,12 +9,14 @@
    Provide this copyright is maintained.
 */
 
-#include <Arduino.h>
+#include "main.h"
 
 #define OLED_WIDTH 128
 #define OLED_HEIGHT 64
 
-const int MAX_SSID_LEN = 32;
+#ifndef MAX_SSID_LEN
+  #define MAX_SSID_LEN 32
+#endif
 const int MAX_PASSWORD_LEN = 64;
 const int MAX_STATICIP_LEN = 40;
 
@@ -26,6 +28,7 @@ struct Wifi_CONFIG_storage_struct {
 const char wifiConfigFileName[] = "/wifiConfig.bin";  // binary file
 
 struct Wifi_CONFIG_storage_struct* initializeWifiConfig(); // start AP for config call handleWifiConfig() from loop to handle web page results
+void startConfigAP();
 bool handleWifiConfig();
 void clearRebootFile();
 String urlDecode(const String& text);

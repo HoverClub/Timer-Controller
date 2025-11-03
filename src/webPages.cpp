@@ -7,29 +7,14 @@
    Provide this copyright is maintained.
 
 */
-#include "webPages.h"
-#include "LittleFSsupport.h"
-#include "timerControl.h"
-#include "DebugOut.h"
-#include "tzPosix.h"
-#include "wifiConfig.h"
-#include <ESP8266WiFi.h>
-#include <ESPAsyncTCP.h>
-#include <ESPAsyncWebServer.h>
-
-extern timerConfig_struct timerConfig;
-extern stat_struct statPins[];
-
-// normally DEBUG is commented out
-//#define DEBUG
-static Stream* debugPtr = NULL;  // local to this file
+#include "main.h"
 
 static AsyncWebServer server(80);
 static void handleSetControl(AsyncWebServerRequest * request);
 static void handleSetTime(AsyncWebServerRequest * request);
 
 static void getJsonControl (AsyncResponseStream * request, int ctrl);
-static void getJsonStatus(AsyncResponseStream * request);
+static void getJsonStatus(AsyncResponseStream * request, bool all = false);
 
 static String correctedTZstr;  // empty if no problems
 static String correctedTZstrDsc;
@@ -100,21 +85,27 @@ static String processor(const String& var) {
     rtnString = String(currCtrl); // default tab to open is control0
 
   else if (var == "MAX_CTRLS")
-    rtnString = String(MAX_CTRLS);
+    rtnString = String(ctrl_count);
 
   else if (var == "MAX_TIMERS")
     rtnString = String(MAX_TIMERS);
 
-  else if (var == "MAX_WEB_TIMERS")
-    rtnString = String(MAX_WEB_TIMERS);
-
   else if (var == "MAX_STATS")
-    rtnString = String(MAX_STATS);
+    rtnString = String(stat_count);
 
-  else if (var == "STAT_TYPES") {
-    for (int t = 0; t < MAX_STATS; t++) {
-      if (t != 0) rtnString.concat(",");
-      rtnString.concat(statPins[t].mplex == STAT_IS_DIGITAL ? "1" : "0");
+  else if (var == "STAT_NAMES") {
+    for (int s = 0; s < stat_count; s++) {
+      if (s != 0) rtnString.concat(",");
+      rtnString.concat("\"");
+      if (IS_STAT_EXPANDER(s))
+        rtnString.concat("x" + String((statPins[s].pinNum & 0x30) >> 4) + "-" + String(statPins[s].pinNum & 0x0F) + " ");
+      else
+        rtnString.concat("p" + String(statPins[s].pinNum & 0x3F) + " ");
+      if (strlen(statPins[s].name))
+        rtnString.concat(String(statPins[s].name));
+      else
+        rtnString.concat(IS_STAT_DIGITAL(s) ? "digital" : "analog");
+      rtnString.concat("\"");
     }
   }
 
@@ -165,42 +156,51 @@ static String processor(const String& var) {
     rtnString =  String(getCurrentTime_hhmm());
   } 
 
+  else if (var == "NAME") {
+    rtnString =  String(CONTROLLER_NAME);
+    rtnString.replace("_", " ");
+  }
+
   return rtnString;
 }
 
 void notFound(AsyncWebServerRequest *request) {
-  request->send(404, "text/plain", "Not found");
+  request->send(404, "text/plain", "File not found");
 }
 
-// save upload config file
+// save uploaded config file - only if  the name matches the current firmware name!
 // should save to temp in case entire file doesn't get uploaded (unlikely!)
-// atm if the wrong size or not written it will reset to default config
+// atm if the wrong size or not written we reset to the default config
 void handleUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
-  
+
+debugln(filename);
+  // check if filename matches this config name
+  if (!filename.equals(String(timerConfigFileName).substring(1))) { // name (skip '/' chr) must equal this version of the firmware!
+    request->send(404, "text/plain", "ERROR - uploaded config file isn't for this control version.");
+    return;
+  }
+
   if (!index) {
-    // open the file on first call and store the file handle in the request object
-    if (initializeFS())
+    //  open the file on first call and store the file handle in the request object
+    if (initializeFS()) // name must match this version of the firmware!
       request->_tempFile = LittleFS.open(String(timerConfigFileName), "w");
   }
 
-  if (len)
-    request->_tempFile.write(data, len); // stream chunk to the file
+  if (request->_tempFile) {
+    if (len)
+      request->_tempFile.write(data, len); // stream chunk to the file
 
-  if (final) {
-    request->_tempFile.close(); // upload done
-    loadTimerConfig();          // reload new config into memory (if saved file was wrong size it will reset to defaults!!)
-    request->redirect("/");     // reload index page to update web page data
+    if (final) {
+      request->_tempFile.close();         // upload done
+      loadTimerConfig();                  // reload new config file into memory (if saved file was wrong size it will reset to defaults!!)
+      request->redirect("/index.html");   // reload index page to update web page data using uploaded file!
+    }
   }
 }
 
 void startWebServer() {
-#ifdef DEBUG
-  debugPtr = getDebugOut();
-#endif
   if (!initializeFS()) {
-    if (debugPtr) {
-      debugPtr->println("LittleFS failed to start");
-    }
+    debugln("LittleFS failed to start");
     return;
   }
 
@@ -215,11 +215,11 @@ void startWebServer() {
   server.on("/index.html", HTTP_GET, [](AsyncWebServerRequest * request) {request->send(LittleFS, "/index.html", String(), false, processor);  });
   
   // returns JSON data for requested control tab
-  // GET 'ctrl=' paramter specifed the ctrl# 
+  // GET 'ctrl=' parameter specifed the ctrl# 
   server.on("/getControl", HTTP_GET, [](AsyncWebServerRequest * request) { \
     if (request->hasParam("ctrl")) { \
       int ctrl = request->getParam("ctrl")->value().toInt(); \
-      if (ctrl >= 0 && ctrl < MAX_CTRLS) { \
+      if (ctrl >= 0 && ctrl < ctrl_count) { \
         AsyncResponseStream *response = request->beginResponseStream("application/json"); \
         getJsonControl(response, ctrl); request->send(response); } \
     } else notFound(request); });
@@ -227,16 +227,24 @@ void startWebServer() {
   server.on("/getStatus", HTTP_GET, [](AsyncWebServerRequest * request) \
     { AsyncResponseStream *response = request->beginResponseStream("application/json"); \
       getJsonStatus(response); request->send(response); });
-  // Load style.css file
+  // send status for all controls including names BUT no timer data (for tab update at page load)
+  server.on("/getAllStatus", HTTP_GET, [](AsyncWebServerRequest * request) \
+    { AsyncResponseStream *response = request->beginResponseStream("application/json"); \
+      getJsonStatus(response, true); request->send(response); }); // incl. name in response
+  
+      // Load style.css file
   server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest * request) { request->send(LittleFS, "/style.css", "text/css"); });
   // Load script.css file
-  server.on("/timer.js", HTTP_GET, [](AsyncWebServerRequest * request) { request->send(LittleFS, "/timer.js", "text/javascript"); });
+  server.on("/timer.js", HTTP_GET, [](AsyncWebServerRequest * request) { request->send(LittleFS, "/timer.js", "text/javascript", false, processor); });
 
-  // get control/timer confirguration file
-  server.on("/download", HTTP_GET, [](AsyncWebServerRequest * request) { request->send(LittleFS, String(timerConfigFileName), "application/octet-stream"); });
-  // upload new control settings file
-  server.on("/upload", HTTP_POST, [](AsyncWebServerRequest *request) { request->send(200); }, handleUpload);
-  
+  // get control/timer configuration
+  server.on("/download", HTTP_GET, [](AsyncWebServerRequest * request) { request->send(LittleFS, String(timerConfigFileName), "application/octet-stream", true); });
+  // upload new control settings file - redirects on all chunks of upload (should only be one) as
+  server.on("/upload", HTTP_POST, [](AsyncWebServerRequest * request) {},
+  [](AsyncWebServerRequest * request, const String & filename, size_t index, uint8_t *data, size_t len, bool final) {
+    handleUpload(request, filename, index, data, len, final);
+  });
+
   // update control settings
   // GET parameters have new settings
   server.on("/setControl", HTTP_GET, [](AsyncWebServerRequest * request) { handleSetControl(request); });
@@ -248,30 +256,27 @@ void startWebServer() {
   server.begin();
 }
 
-/* returns JSON control data for requested control tab
-  NOTE the HTML IDs used in the elements of the control tabe MUST match the variable 
+/* sends the JSON control data for requested control tab
+  NOTE the HTML IDs used in the elements of the control tab (in index.html) MUST match the variable 
   names used in the JSON response!!!
   {
-    "id": 0,
-    "time": "54292",
-    "state": false,
-    "name": "Control ",
-    "setting": "F",
+    "C": 0,
+    "T": "54292",
+    "I": false,
+    "N": "Control ",
+    "A": "F",
     "timers": [
-      {
-        "id": 2,
-        "onTime": 0,
-        "offTime": 0,
-        "temp": 20,
-        "lessthan": "L"
+      null,   // timer 0 is hidden from user
+      {           // timer1
+        "O": 0, // onTimes
+        "F": 0, //offTimes
+        "T": 20, // temp
+        "H": 3  // b7 = lessthan, b0-6 = hysteresis value
+        "S": -1, // stat index
       },
-      {
-        "id": 3,
-        "onTime": 0,
-        "offTime": 0,
-        "temp": 20,
-        "lessthan": "L",
-        "stat": -1,
+      { // timer 1 ...
+        ...
+        ...
       }
     ]
   }
@@ -286,7 +291,7 @@ void getJsonControl(AsyncResponseStream * response, int ctrl) {
   response->print("{");
   response->printf("\"C\":%i,", ctrl);
   response->printf("\"T\":\"%i\",", getLocalTime_s());
-  response->printf("\"I\":%i,", isCtrlOn(ctrl));
+  response->printf("\"I\":%i,", isCtrlOn(ctrl) ? 1 : 0);
   response->printf("\"N\":\"%s\",", getCtrlName(ctrl));
   response->printf("\"A\":\"%c\",\"timers\":[null", getSetting(ctrl));
   for (int t = 1; t < MAX_TIMERS; t++) { // timers
@@ -294,6 +299,7 @@ void getJsonControl(AsyncResponseStream * response, int ctrl) {
     response->printf("\"F\":\"%s\",", minToHH_mm(getOffTime_mins(ctrl, t)).c_str());
     response->printf("\"T\":%i,", getTemp(ctrl, t));
     response->printf("\"L\":\"%c\",", getLess(ctrl, t));
+    response->printf("\"H\":\"%i\",", getHyst(ctrl, t));
     response->printf("\"S\":%i}", getStat(ctrl, t));
   }
   response->print("]}");
@@ -312,19 +318,21 @@ void getJsonControl(AsyncResponseStream * response, int ctrl) {
   ],
   "V":[null, "1":<val>, "2":<val>,"3": < val>, etc.  ]
 } */
-void getJsonStatus(AsyncResponseStream * response) {
+void getJsonStatus(AsyncResponseStream * response, bool all /*= false*/) {
   response->print("{");
   response->printf("\"T\":\"%i\",\"C\":[", getLocalTime_s());
   
-  for (int c = 0; c < MAX_CTRLS; c++) {
-    response->print( c == 0 ? "" : ",");
-    response->printf("{\"I\":%i,", isCtrlOn(c));
+  for (int c = 0; c < ctrl_count; c++) {
+    if (c > 0) response->print(",");
+    response->printf("{\"I\":%i,", isCtrlOn(c) ? 1 : 0);
+    if (all) 
+      response->printf("\"N\":\"%s\",", getCtrlName(c)); // incl name for 1st page load!
     response->printf( "\"A\":\"%c\"}", getSetting(c));
   }
   int c = currCtrl == -1 ? 0 : currCtrl; // default to ctrl0 for temps if we are viewing timezone
   response->print("],\"V\":[0");
   for (int t = 1; t < MAX_TIMERS; t++) {
-    response->printf(",%i", getCurrTemp(c, t));
+    response->printf(",%i", getCurrStatVal(c, t));
   }
   response->print("]}");
 }
@@ -338,7 +346,7 @@ static void handleSetTime(AsyncWebServerRequest * request) {
   int params = request->params();
   String newTZ;
   for (int i = 0; i < params; i++) {
-    AsyncWebParameter *p = request->getParam(i);
+    const AsyncWebParameter *p = request->getParam(i);
     if (p->name().equals("RESET")) {
         resetDefaultTZstr();
       break;
@@ -349,9 +357,7 @@ static void handleSetTime(AsyncWebServerRequest * request) {
       correctedTZstr = "";
       correctedTZstrDsc = "";
       setMsg = "";
-      if (debugPtr) {
-        debugPtr->printf("Tz input string Value: %s\n", p->value().c_str());
-      }
+      debugf("Tz input string Value: %s\n", p->value().c_str());
       String inputStr = p->value();
       inputStr.trim();
       String cleanStr = p->value();
@@ -371,8 +377,7 @@ static void handleSetTime(AsyncWebServerRequest * request) {
       }
     }
     if (strcmp(p->name().c_str(), "TIME") == 0) {
-      if (debugPtr)
-        debugPtr->printf("Time Value: %s\n", p->value().c_str());
+      debugf("Time Value: %s\n", p->value().c_str());
       int dayMins = convertHH_MMtoMins(p->value());
       if (dayMins != -1) {
         // get utc time
@@ -380,25 +385,19 @@ static void handleSetTime(AsyncWebServerRequest * request) {
         struct tm* tmPtr = gmtime(&now);
         int utcDayMins = tmPtr->tm_hour * 60 + tmPtr->tm_min;
         int tzDiffMins = (utcDayMins - dayMins);
-        if (debugPtr) {
-          debugPtr->print("tzDiff :"); debugPtr->print(tzDiffMins); debugPtr->println();
-        }
+        debug("tzDiff :"); debug(tzDiffMins); debugln();
         // round to 5min
         int sign = 1;
         if (tzDiffMins < 0) {
           sign = -1;
         }
         int tzDiffMinRoundedUnsigned = (( tzDiffMins * sign * 60 + 150) / 300 * 300) / 60;
-        if (debugPtr) {
-          debugPtr->print("tzDiffRounded :"); debugPtr->print(tzDiffMinRoundedUnsigned); debugPtr->println();
-        }
+        debug("tzDiffRounded :"); debug(tzDiffMinRoundedUnsigned); debugln();
         int hr_offset = tzDiffMinRoundedUnsigned / 60;
         int min_offset = tzDiffMinRoundedUnsigned - hr_offset * 60;
         tzDiffMins = tzDiffMinRoundedUnsigned * sign;
         hr_offset *= sign;
-        if (debugPtr) {
-          debugPtr->print("offset "); debugPtr->print(hr_offset); debugPtr->print(':'); debugPtr->print(min_offset); debugPtr->println();
-        }
+        debug("offset "); debug(hr_offset); debug(':'); debug(min_offset); debugln();
         // offsets in range -12 < offset <= +12  i.e. -11:45 is the smallest offset and +12:00 is the largest
         //         mins in range -720 < offsetMin <= +720
         // e.g. LT (localTime) = 14:00,  UTC=04:00  tzoffset = +10:00
@@ -418,9 +417,7 @@ static void handleSetTime(AsyncWebServerRequest * request) {
         hr_offset = tzDiffMinRoundedUnsigned / 60;
         min_offset = tzDiffMinRoundedUnsigned - hr_offset * 60;
         hr_offset *= sign;
-        if (debugPtr) {
-          debugPtr->print("offset (+/-12)"); debugPtr->print(hr_offset); debugPtr->print(':'); debugPtr->print(min_offset); debugPtr->println();
-        }
+        debug("offset (+/-12)"); debug(hr_offset); debug(':'); debug(min_offset); debugln();
         setTZoffsetInMins(tzDiffMins); // update in min
       }
     }
@@ -454,12 +451,12 @@ static void handleSetControl(AsyncWebServerRequest * request) {
   int ctrl;
   if (request->hasParam("C")) {
     ctrl = request->getParam("C")->value().toInt();
-    if (ctrl >= 0 && ctrl < MAX_CTRLS) {
+    if (ctrl >= 0 && ctrl < ctrl_count) {
       currCtrl = ctrl; // update to new ctrl
       int params = request->params();
       
       for (int i = 0; i < params; i++) {
-        AsyncWebParameter *p = request->getParam(i);
+        const AsyncWebParameter *p = request->getParam(i);
 
         // control name string
         if (p->name() == "N") {
@@ -511,6 +508,8 @@ static void handleSetControl(AsyncWebServerRequest * request) {
               setTemp(ctrl, timer, strtol(p->value().c_str(), NULL, DEC)); // handles negative numbers!
             else if (id == 'L')   // lessthan
               setLess(ctrl, timer, p->value()[0]);
+            else if (id == 'H')   // hysteresis
+              setHyst(ctrl, timer, strtol(p->value().c_str(), NULL, DEC));
             else if (id == 'S')   // stat #
               setStat(ctrl, timer, strtol(p->value().c_str(), NULL, DEC)); // handles negative numbe (-1 = no stat)!
           }

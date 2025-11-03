@@ -12,7 +12,7 @@
    https://github.com/ropg/ezTime  
 */
 
-#include "limits.h"
+#include "main.h"
 
 // NOTE if start_month = 0 => no dst
 struct posix_tz_data_struct {

@@ -9,18 +9,14 @@
 */
 #include "main.h"
 
-// 128x64 OLED on I2C SDA - IO4, SCL - IO5 (D1 & D2 on D1 Mini board!)
-// Adafruit_SSD1306 oled(OLED_WIDTH, OLED_HEIGHT, &Wire, -1); .. 0.96" OLED
-Adafruit_SH1106 oled(-1);     // 1.3" OLED
-
 millisDelay endConfigTimer;
 const unsigned long END_CONFIG_MS = 5ul * 60 * 1000; // 5mins to make first connection and show wifi config webpage
-const unsigned long RESTART_AFTER_CONFIG_MS = 30 * 1000; // 30 sec after config set
+const unsigned long RESTART_AFTER_CONFIG_MS = 10 * 1000; // 10 sec after config set restart system
 bool initConfigCalled = false; // set true on first call, second call start AP for wifi config
 
 static struct Wifi_CONFIG_storage_struct storage;
 
-static struct Wifi_CONFIG_storage_struct* loadWifiConfig(); // returns pointer to wifi config storage or default values (if any)
+static bool loadWifiConfig(); // returns pointer to wifi config storage or default values (if any)
 
 // default config for testing
 static void setInitialWifiConfig() {
@@ -28,13 +24,6 @@ static void setInitialWifiConfig() {
   cSFA(sfPW, storage.password);
   sfSSID = wifiSSID;  // if this is empty config not set and the Power Time will go in to network setup mode on power up.
   sfPW = wifiPassword;
-}
-
-void printWifConfig(struct Wifi_CONFIG_storage_struct& storage) {
-  debug("ssid:");
-  debugln(storage.ssid);
-  debug("password:");
-  debugln(storage.password);
 }
 
 static void setupAP(const char* ssid_wifi, const char* password_wifi);
@@ -49,25 +38,13 @@ cSF(sfStrongestAP, MAX_SSID_LEN);
   call this in setup() only !!
   if called twice the second call will startup AP (since file will exist), if not already started
 */
-
 bool inConfigMode = false; // made non-static to be accessible from other files if needed
 
 struct Wifi_CONFIG_storage_struct*  initializeWifiConfig() {
-  debug(F("initializeWifiConfig() ")); debugln();
-
-  if (!initializeFS()) {
-    debug(F("LittleFS initialize failed ")); debugln();
-    setInitialWifiConfig();
-    return &storage;
-  }
-  
   if (!initConfigCalled) {
     initConfigCalled = true;
-    loadWifiConfig(); // loads global storage, or sets default if missing
-    // If the file was missing, loadWifiConfig returns defaults, so we save them.
-    saveWifiConfig(storage); // save
-    loadWifiConfig(); // reload global
-    return &storage; // loaded by setupAP
+    if (!loadWifiConfig()) // loads global storage, or sets default if missing
+      saveWifiConfig(storage);       // If the file was missing, loadWifiConfig sets defaults, so save them.
   }
   return &storage; // loaded by setupAP
 }
@@ -100,59 +77,40 @@ bool handleWifiConfig() {
   return true;
 }
 
-// loads global storage and returns pointer to it
-static struct Wifi_CONFIG_storage_struct* loadWifiConfig() {
+// loads global storage 
+// sets default if can't load
+static bool loadWifiConfig() {
   setInitialWifiConfig();
-  if (!initializeFS()) {
-    debugln(F("FS failed to initialize"));
-    debugln("set config");
-    printWifConfig(storage);
-    return &storage; // returns default if cannot open FS
-  }
-  if (!LittleFS.exists(wifiConfigFileName)) {
-    debug(wifiConfigFileName); debug(" missing.");
-    debugln("set config");
-    printWifConfig(storage);
-    return &storage; // returns default if missing
+  if (!SPIFFS.exists(wifiConfigFileName)) {
+    debugln(wifiConfigFileName); debug(" missing - using defaults.");
+    return false;
   }
   // else load config
-  File f = LittleFS.open(wifiConfigFileName, "r");
+  File f = SPIFFS.open(wifiConfigFileName, "r");
   if (!f) {
-    debug(wifiConfigFileName); debug(F(" did not open for read."));
-    debugln("set config");
-    printWifConfig(storage);
-    return &storage; // returns default wrong size
+    debugln(wifiConfigFileName); debug(F(" did not open for read. Using defaults."));
+    return false;
   }
   if (f.size() != sizeof(storage)) {
-    debug(wifiConfigFileName); debug(" wrong size.");
+    debugln(wifiConfigFileName); debug(" wrong size. Using defaults");
     f.close();
-    debugln("set config");
-    printWifConfig(storage);
-    return &storage; // returns default wrong size
+    return false;
   }
   int bytesIn = f.read((uint8_t*)(&storage), sizeof(storage));
-  if (bytesIn != sizeof(storage)) {
-    debug(wifiConfigFileName); debug(" wrong size read in.");
-    setInitialWifiConfig(); // again
-    f.close();
-    debugln("set config");
-    printWifConfig(storage);
-    return &storage;
-  }
   f.close();
+  if (bytesIn != sizeof(storage)) {
+    debug(wifiConfigFileName); debug(" wrong size read in. Using defaults.");
+    setInitialWifiConfig(); // set defaults again
+    return false;
+  }
   // else return settings
-  debugln("Loaded config");
-  printWifConfig(storage);
-  return &storage;
+  debugf("WiFi config loaded - ssid:%s passw: %s\n", storage.ssid, storage.password);
+  return true;
 }
 
 static bool saveWifiConfig(struct Wifi_CONFIG_storage_struct& storage) {
-  if (!initializeFS()) {
-    debugln(F("FS failed to initialize"));
-    return false;
-  }
   // else save config
-  File f = LittleFS.open(wifiConfigFileName, "w"); // create/overwrite
+  File f = SPIFFS.open(wifiConfigFileName, "w"); // create/overwrite
   if (!f) {
     debug(wifiConfigFileName); debug(F(" did not open for write."));
     return false; // returns default wrong size
@@ -197,7 +155,8 @@ static void scanForStrongestAP(SafeString &result) {
    process index.html template
 */
 static String processorConf(const String& var) {
-  String rtnString = "";
+  static String rtnString; // Make the string static
+  rtnString = "";
 
   // set current visible tab
   if (var == "1") {
@@ -205,8 +164,7 @@ static String processorConf(const String& var) {
   } else if (var == "2") {
     rtnString = storage.password;
   } else if (var == "NAME") {
-    rtnString =  String(CONTROLLER_NAME);
-    rtnString.replace("_", " ");
+    rtnString =  "Timer Controller";
   }
   return rtnString;
 }
@@ -237,20 +195,13 @@ static void handleConfig(AsyncWebServerRequest *request) {
         }
       }
     }
-    debugln();
-    printWifConfig(storage);
 
     // store the settings
     if (!saveWifiConfig(storage)) {
       loadWifiConfig(); // re-initialize
     }
     endConfigTimer.start(RESTART_AFTER_CONFIG_MS); // restart in 30sec
-  } // else if no args just return current settings
-
-  delay(0);
-  loadWifiConfig();
-  debugln();
-  printWifConfig(storage);
+  }
 }
 
 /**
@@ -273,10 +224,10 @@ static void setupAP(const char* ssid_wifi, const char* password_wifi) {
 
   webserver.on("/", HTTP_GET, [](AsyncWebServerRequest * request) {
     if (endConfigTimer.justFinished()) ESP.restart();
-    request->send(LittleFS, "/indexc.html", String(), false, processorConf);  
+    request->send(SPIFFS, "/indexc.html", String(), false, processorConf);  
     });
   webserver.on("/config", HTTP_POST, [](AsyncWebServerRequest *request)
-      { handleConfig(request); request->send(LittleFS, "/config.html", String(), false, processorConf); 
+      { handleConfig(request); request->send(SPIFFS, "/config.html", String(), false, processorConf); 
     });
 
   webserver.begin();
@@ -284,6 +235,7 @@ static void setupAP(const char* ssid_wifi, const char* password_wifi) {
   debugln ( "HTTP webserver started" );
   loadWifiConfig(); // sets global storage
   endConfigTimer.start(END_CONFIG_MS);
+#if (OLED_TYPE != oled_none)
   // display QR code for AP
   // wifi QRcode format =  WIFI:T:WPA;S:myNetworkName;P:myPassword;;
   String sAP = "WIFI:S:" + String(ssid_wifi) + ";";
@@ -300,6 +252,7 @@ static void setupAP(const char* ssid_wifi, const char* password_wifi) {
   oled.println("http://");
   oled.println("10.1.1.1");
   oled.display();              // display on OLED
+#endif
 }
 
 String urlDecode(const String& text) {
@@ -332,6 +285,7 @@ String urlDecode(const String& text) {
   return decoded;
 }
 
+#if (OLED_TYPE != oled_none)
 void generateQRCode(const char* text) {
 
 // formats for url, wifi, email, etc.
@@ -353,12 +307,6 @@ void generateQRCode(const char* text) {
   oled.display();
 }
 
-void startOLED() {
-  // oled.begin(SSD1306_SWITCHCAPVCC, 0x3C, true) // .. OR ...
-  oled.begin(SH1106_SWITCHCAPVCC, 0x3C);
-  oled.clearDisplay(); // clear display
-}
-
 void printIPconfig(const char* nIP) { // display IP address screen & QR code
 // https://github.com/ricmoo/QRCode
   generateQRCode(nIP); // show QR code for our IP address at rhs of display
@@ -366,16 +314,20 @@ void printIPconfig(const char* nIP) { // display IP address screen & QR code
   oled.setTextSize(1);         // set text size
   oled.setTextColor(WHITE);    // set text color
   oled.setCursor(0, 0);       // set position to display (11 cols x 8 rows)
-  oled.println("To setup");
-  oled.println("controller");
-  oled.println("browse/QR");
-  oled.println("to addr");
+  oled.println("Setup and");
+  oled.println("control at");
   oled.println(tStr.substring(0,10));
   oled.println(tStr.substring(10));
-  
   oled.display();              // display on OLED
 }
+#endif
 
-bool isWifiConfigMode() {
-  return inConfigMode;
+void startOLED() {
+#if (OLED_TYPE == oled_96)
+  oled.begin(SSD1306_SWITCHCAPVCC, 0x3C, true);
+  oled.clearDisplay(); // clear display
+#elif (OLED_TYPE == oled_13)
+  oled.begin(SH1106_SWITCHCAPVCC, 0x3C, false);
+  oled.clearDisplay(); // clear display
+#endif
 }

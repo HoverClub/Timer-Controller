@@ -1,27 +1,32 @@
 <html>
   <head>
-    <title>%NAME% Controller Wifi Network Config</title>
-    <meta charset=utf-8 />
-    <meta name=viewport content=width=device-width, initial-scale=1>
+    <title>%NAME% Wifi Network Config</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="style.css">
   </head>
   <body>
-    <h2>%NAME% Controller Wifi Network Config</h2>
-    <p>Use this to set the controller to connect to your local Wifi network.<br>
-    <i>Leading and trailing spaces are trimmed.</i></p>
-    <form class=form method="post" action="/config" >
-      <p class=name>
-      <label for="ssid">Local WiFi network name (SSID)</label><br>
-      <input type=text name="1" id="ssid" placeholder="wifi network name"  required value="%1%"/>
-      <p class=password>
-      <label for="password">Password for WEP/WPA/WPA2 (enter a space if there is no password)<br>
-      To use existing password leave as '*'' </label><br>
-      <input type=text name="2" id="password" placeholder="wifi network password" autocomplete=off required  value="%2%" />
-      <p class=password>
-      </p>
-      <p class=submit>
-      <input type=submit style=font-size:25px; value=Configure />
-      </p>
-    </form>
-      After tapping'Config the Controller will automatically restart (and attempt to connect to your local WiFi network) in 30 seconds.  
-    </body>
-</html>;
+    <h2>%NAME% Wifi Network Config</h2>
+    <div class="settings-block">
+      <div class="info-txt">
+        <p>Use this to set the controller to connect to your local Wifi network.<br>
+        <i>Leading and trailing spaces are trimmed.</i></p>
+      </div>
+      <form class="form" method="post" action="/config" >
+        <p>
+          <label for="ssid">Local WiFi network name (SSID)</label><br>
+          <input type="text" name="1" id="ssid" placeholder="wifi network name"  required value="%1%"/>
+        </p>
+        <p>
+          <label for="password">Password for WEP/WPA/WPA2 (enter a space if there is no password)<br>
+          To use existing password leave as '*'' </label><br>
+          <input type="text" name="2" id="password" placeholder="wifi network password" autocomplete="off" required  value="%2%" />
+        </p>
+        <div class="form-actions">
+          <button type="submit" class="button">Configure</button>
+        </div>
+      </form>
+      <div class="info-txt">After tapping 'Configure' the Controller will automatically restart (and attempt to connect to your local WiFi network) in 30 seconds.</div>
+    </div>
+  </body>
+</html>

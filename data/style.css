@@ -3,26 +3,191 @@ html {
   display: inline-block;
   margin: 0px auto;
   text-align: center;
-}
-h1{
-  color: #070812;
-  padding: 2vh;
+  background-color: #f0f4f8; /* Light blue-grey background */
 }
  /* Style the tab */
 .tab {
   overflow: hidden;
   border-top-left-radius: 12px;
-  background-color: #f1f1f1;
+  background-color: transparent; /* Blend with body background */
   border-bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ctrledit {
+  cursor: pointer;
+  border-radius: 6px;
+	box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19);
+  padding: 8px 14px;
+  box-sizing: border-box;
+  background-color: #e0e6ec; /* Lighter color to match theme */
+  display: flex;
+  align-self: center; /* Vertically center */
+  justify-content: center;
+  font-size: 14px;
+  color: #333;
+  flex-shrink: 0; /* Prevent button from shrinking */
+}
+
+.modal-content form {
+  padding: 20px 20px 20px;
+}
+
+.modal-content input, select {
+  margin: 4px 4px;
+}
+
+/* Calendar Modal styles */
+.modal {
+  display: none; 
+  position: fixed; 
+  z-index: 10; 
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: auto; 
+  background-color: rgba(0,0,0,0.6);
+}
+
+.modal-content {
+  position: relative;
+  background-color: #eef2f7;
+  margin: 10% auto;
+  padding: 0;
+  border: 1px solid #555;
+  width: 80%;
+  max-width: 500px;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2),0 6px 20px 0 rgba(0,0,0,0.19);
+}
+
+.modal-content h4, .calendar-modal-content h5 {
+  text-align: left;
+  margin: 0;
+  padding: 10px 20px;
+}
+
+.modal-content h4 {
+  font-size: 1.2em;
+  background-color: #2c3e50;
+  color: white;
+  border-radius: 8px 8px 0 0;
+}
+
+.modal-content h5 {
+  font-size: 1em;
+  color: #2c3e50;
+  font-weight: bold;
+}
+
+.close-button {
+  color: #ccc;
+  float: right;
+  font-size: 40px;
+  font-weight: bold;
+  padding: 0px 10px;
+}
+
+.close-button:hover,
+.close-button:focus {
+  color: white;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+  gap: 8px;
+  padding: 0 20px 20px 20px;
+}
+
+.calendar-grid label {
+  display: block;
+  text-align: center;
+  padding: 5px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  background-color: #f9f9f9;
+  color: #333; /* Make text visible on light background */
+  transition: background-color 0.2s;
+  position: relative; /* Needed for positioning the input */
+}
+
+.calendar-grid label:hover {
+  background-color: #e9e9e9;
+}
+
+.calendar-grid input {
+  display: none; /* Hide the checkbox */
+}
+
+.calendar-grid input:checked + span {
+  background-color: #364cf4;
+  color: white;
+}
+
+.calendar-grid input + span {
+  display: block;
+  padding: 5px;
+}
+
+input::placeholder {
+  color: grey;
+  opacity: 0.5;
+}
+
+.schedule-overlay {
+  padding: 2px 4px;
+  cursor: pointer;
+  border-radius: 6px;
+	box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19);
+  min-height: 38px; /* Match input height */
+  padding: 8px 12px;
+  box-sizing: border-box;
+  background-color: #e0e6ec; /* Lighter color to match theme */
+  display: flex;
+  align-items: center; /* Vertically center text */
+  justify-content: center;
+  font-size: 14px;
+  color: #333;
+  flex-shrink: 0; /* Prevent button from shrinking */
+  grid-area: schedule-btn; /* Assign to grid area */
+}
+
+.hidden {
+  display: none !important;
+}
+
+.schedule-text-display {
+  font-size: 12px;
+  white-space: normal; /* Allow wrapping */
+  word-break: break-word; /* Break long words if necessary */
+  color: #555;
+  text-align: left;
+  align-self: center;
+}
+
+.show {
+    display: block;
 }
 
 #I {
-  font-size:20px;
+  height:15px;
+  font-size:12px;
   font-weight:bold;
   padding:8px;
   border: 1px black;
-	border-radius: 1em;
-  color: white
+	border-radius: 3em;
+  color: white;
+  align-content: center;
+  align-self: center;
+  margin: 8px;
 }
 #I.on {
   background-color: red;
@@ -38,33 +203,89 @@ h1{
 }
 
 .clock {
-  font-size:25px;
+  font-size:22px;
   font-weight:bold;
-  float:left;
+  float:right;
   color:lightgreen;
   background-color:black;
   border-radius: 0.5em;
-  padding: 8px;
+  padding: 4px;
   text-align: center;
-  margin: 5px;
+  margin: 0px;
 }
 
-/* control name ext input */
-#N {
-	appearance: none;
-	border: none;
-	outline: none;
-	border-bottom: .2em solid #E91E63;
-	background: #F5DFE6;
-	border-radius: .2em .2em 0 0;
-	font-size: 21px;
-  font-weight: bold;
-  color: darkred;
-  width: 11em;
+.clock-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.date {
+  font-size: 13px;
+  color: #555;
+  margin-right: 4px;
+}
+
+.date-container {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.sntp-icon {
+  display: none; /* Hidden by default */
+  width: 18px;
+  height: 18px;
+  position: relative;
+  margin-right: 5px;
+}
+.sntp-icon.on {
+  display: block; /* Shown when time is synced */
+}
+
+/* The clock face and refresh arrow */
+.sntp-icon::before, .sntp-icon::after {
+  content: '';
+  position: absolute;
+  box-sizing: border-box;
+}
+
+/* Clock face */
+.sntp-icon::before {
+  top: 3px;
+  left: 3px;
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid #555;
+  border-radius: 50%;
+  /* Clock hands */
+  background: linear-gradient(to top, transparent 45%, #555 45%, #555 55%, transparent 55%),
+              linear-gradient(to right, transparent 45%, #555 45%, #555 55%, transparent 55%);
+}
+
+/* Refresh arrow */
+.sntp-icon::after {
+  top: 0; left: 0; width: 18px; height: 18px;
+  border: 2px solid; border-color: #555 #555 transparent transparent;
+  border-radius: 50%; transform: rotate(45deg);
+}
+
+#EE {
+  flex-grow: 1;
   text-align: center;
+  color: red;
+  font-weight: bold;
+  padding: 5px;
+  margin: 0 10px;
+  min-height: 1.2em;
+  font-size: 14px;
+}
+
+#N:focus {
+  border-bottom-color: #364cf4;
 }
 .tab button {
-  background-color: lightgrey;
+  background-color: #e9ecef; /* Lighter grey for tabs */
   float: left;
   border: 1px solid black;
   border-top-left-radius: 12px;
@@ -73,12 +294,15 @@ h1{
   outline: none;
   cursor: pointer;
   padding: 14px 16px;
+  display: flex; /* Use flexbox for alignment */
+  align-items: center; /* Vertically center icon and text */
+  gap: 8px; /* Space between icon and text */
   transition: 0.3s;
   font-size: 16px;
   color: black;
 }
 .tab button:hover {
-  background-color: #ddd;
+  background-color: #dee2e6; /* Slightly darker hover */
 }
 .tab button.active {
   background-color: white;
@@ -86,11 +310,22 @@ h1{
   color: black;
   font-weight: bold;
 }
-.tab button.active.on {
+
+.tab-icon {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
   background-color: red;
+  visibility: hidden; /* Hidden by default */
+  opacity: 0.5;
+  transition: opacity 0.3s, visibility 0.3s;
+  box-shadow: 0 0 3px red;
 }
-.tab button.on {
-  background-color: #f7adad;;;
+.tab-icon.on {
+  visibility: visible; /* Visible when control is on */
+  opacity: 1;
+  animation: flash 1.5s infinite;
 }
 
 @keyframes fadeEffect {
@@ -98,62 +333,153 @@ h1{
   to {opacity: 1;}
 }
 
+@keyframes flash {
+  0%, 100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 .tabcontent {
   padding: 6px 12px;
   border: 1px solid #ccc;
   border-top: none;
   animation: fadeEffect 1s; /* Fading effect takes 1 second */
-  background-color:lightgrey;
+  background-color: white; /* White background for content area */
 } 
+
 .time {
   display: inline-block;
-  background-color: #b30000;
+  background-color: #f4f4f4;
   border: none;
   border-radius: 4px;
-  color: white;
-  padding: 0;
+  color: #555555;
+  padding: 10px;
   text-decoration: none;
-  font-size: 25px;
   margin: 0;
   cursor: pointer;
   width: 100%
 }	
+.timer-block {
+  display: grid;
+  grid-template-columns: 0.7fr 1fr 1.2fr 1fr 1fr 1.5fr;
+  grid-template-areas:
+    "title on duration sensor condition setpoint" ". schedule schedule schedule schedule schedule";
+  align-items: center;
+  gap: 10px;
+  background-color: white;
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  margin-bottom: 10px;
+}
+.timer-item {
+  display: flex;
+  flex-direction: column;
+}
+.timer-item label {
+  font-size: 0.8em;
+  font-weight: bold;
+  margin-bottom: 4px;
+  color: #555;
+}
+.timer-item input, .timer-item select {
+  width: 100%;
+  box-sizing: border-box;
+}
+.timer-item input, .timer-item select {
+  padding: 8px; /* Consistent padding */
+  height: 38px; /* Consistent height */
+  margin-top: 0; /* Remove default browser margins */
+  margin-bottom: 0;
+}
+.timer-item span[id$="V"] { /* Targets spans like T1V, T2V, etc. */
+  min-height: 1.2em; /* Ensure it takes up space even if empty */
+  white-space: nowrap; /* Prevent wrapping if content is long */
+  color: #555;
+  font-weight: normal;
+  margin-left: 5px;
+}
+.timer-item.timer-title { 
+  grid-area: title;
+  font-size: 1.5em; 
+  font-weight: bold; 
+}
+.timer-item.timer-on { grid-area: on; }
+.timer-item.timer-duration { grid-area: duration; }
+.timer-item.timer-sensor { grid-area: sensor; }
+.timer-item.timer-condition { grid-area: condition; }
+.timer-item.timer-setpoint { grid-area: setpoint; }
 
+.timer-schedule {
+  grid-area: schedule;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  margin-top: -10px; /* Reduce gap from row above */
+.timer-schedule > .schedule-overlay { grid-area: schedule-btn; }
+.timer-schedule > [id$="SchedDays"] { grid-area: schedule-days; }
+.timer-schedule > [id$="SchedDates"] { grid-area: schedule-dates; }
+.timer-schedule > [id$="SchedMonths"] { grid-area: schedule-months; }
+}
+
+.timer-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start; /* or center, etc. */
+  gap: 10px; /* Adjust spacing between items */
+  width: 100%;
+}
+
+.timer-setpoint > div {
+  display: flex;
+  align-items: center;
+}
+
+.timer-setpoint input[type="number"] {
+  width: 65px; /* Increased width to prevent value being hidden */
+  flex-shrink: 0; /* Prevent inputs from shrinking */
+  margin: 0 4px;
+}
 .time-field {
-  font-size: 18px;
+  font-size:16px;
 }
-.time input {
-	background-color: #fff;
-	background-clip: padding-box;
-	border: 1px solid #ced4da;
-}
-.time-field label {
-  font-size: 18px;
-}
+
 .time-field input {
   background-color: #fff;
 	background-clip: padding-box;
 	border: 1px solid #ced4da;
   margin:2px;
+  padding: 8px; /* Consistent padding */
+  box-sizing: border-box; /* Include padding in width calculation */
 }
-.tzstr-field input {
-	background-color: #fff;
-	background-clip: padding-box;
-	border: 1px solid #ced4da;
-  font-size: 15px;
-	width: 95%;
+
+.settings-block {
+  background-color: white;
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  margin-bottom: 10px;
+  text-align: left; /* Align text within the block to the left */
 }
-.time-field-txt {
-  color: black;
-	background-color: #fff;
-	border: 1px solid #ced4da;
-  font-size: 20px;
+
+.settings-block label {
+  font-weight: bold;
+  color: #333;
 }
+
 .info-txt {
-    color: white;
+    color: #555; /* Changed from white to a darker color for visibility */
     border:0 none;
   font-size: 12px;
 }	
+
+input, select, button {
+  box-shadow: 0 8px 20px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19);
+}
 
 input[type=submit] {
   padding:5px 15px; 
@@ -161,32 +487,56 @@ input[type=submit] {
   border:0 none;
   cursor:pointer;
   padding: 12px 10px;
- 
   font-size: 20px;
   margin: 2px;
   -webkit-border-radius: 5px;
   border-radius: 5px; 
 }
 
+.tzstr-field input {
+  background-color: #fff;
+  background-clip: padding-box;
+  border: 1px solid #ced4da;
+  font-size: 15px;
+  width: calc(100% - 16px); /* Adjust width to account for padding */
+  padding: 8px; /* Add padding for better appearance */
+  box-sizing: border-box; /* Include padding in width calculation */
+}
+
+.control-buttons-group {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
 .button, button[name="A"] {
   display: inline-block;
-  background-color: #364cf4;
-  border: none;
-  border-radius: 4px;
-  border-color:grey;
-  color: white;
-  padding: 10px 30px;
+  background-color: transparent;
+  border: 1px solid #ccc;
+  color: #333;
+  padding: 10px 20px;
   text-decoration: none;
   font-size: 18px;
-  margin: 4px;
+  margin: 0;
   cursor: pointer;
-  box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19);
+  transition: background-color 0.2s, color 0.2s;
+}
+.control-buttons-group button:first-child {
+  border-radius: 4px 0 0 4px;
+}
+.control-buttons-group button:last-child {
+  border-radius: 0 4px 4px 0;
+  border-left-width: 0;
 }
 button[name="A"].active {
-  background-color: green;
+  background-color: #2c3e50;
+  color: white;
+  border-color: #2c3e50;
 }
-button[name="A"]:hover {
-  opacity: 0.6;
+.button:hover, button[name="A"]:hover {
+  background-color: #d6d8db; /* Darker grey for hover */
+  color: #333;
 }
 button[name="A"]:disabled {
   opacity: 0.3;
@@ -196,58 +546,106 @@ button[name="A"]:disabled {
 h2 {
   margin:8px;
 }
-#E {
-  min-height: 1.2em;
+
+/* Responsive layout for smaller screens */
+@media (max-width: 900px) {
+  .timer-block {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "title title"
+      "on duration"
+      "schedule schedule"
+      "sensor condition"
+      "setpoint setpoint";
+    row-gap: 15px;
+  }
 }
 
-.content { 
-  padding: 0px;
-}
-.card-grid {
-  max-width: 360px;
-  margin: 8px auto;
-  display: grid;
-  grid-gap: 2rem;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-}
-.card {
-  box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19);
-}
-.card-title {
-  font-size: 1.2rem;
-  font-weight: bold;
+@media (max-width: 500px) {
+  .timer-block {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "title" "on" "schedule" "duration" "sensor" "condition" "setpoint";
+  }
+  .timer-item { align-items: flex-start; }
+  .settings-block .tzstr-field input { width: 100%; }
 }
 .arrowpopup {
   position: relative;
-  display: inline-block;
+  display: block; /* Change to block to ensure proper document flow */
+  margin-top: 5px;
   cursor: pointer;
   }
   .arrowpopup .tooltiptext {
   visibility: hidden;
-  width: 250px;
-  background-color: #0000ff;
+  min-width: 112px;
+  max-width: 300px; /* Set a max-width */
+  background-color: #2c3e50; /* Consistent with calendar modal header */
   color: white;
   font-size: 12px;
-  text-align: center;
-  border-radius: 4px;
-  padding: 9px ;
+  text-align: left; /* Better for multi-line text */
+  border-radius: 5px;
+  padding: 10px 15px;
   position: absolute;
-  bottom: 150%;
-  left: 5%;
-  margin-left: -240px;
-  margin-bottom: 25px;
+  bottom: calc(100% + 10px); /* 10px above the trigger */
+  left: 0; /* Align with the left of the help link */
+  z-index: 100; /* Ensure it's on top */
   }
   .arrowpopup .tooltiptext::after {
   content: "";
   position: absolute;
   top: 100%;
-  left: 5%;
-  margin-left: -5px;
+  left: 20px; /* Position arrow near the start of the help link */
   border-width: 5px;
   border-style: solid;
-  border-color: #0000ff transparent transparent transparent;
+  border-color: #2c3e50 transparent transparent transparent; /* Match tooltip background */
   }
   .arrowpopup .show {
   visibility: visible;
   }
+
+.help-link {
+  font-size: 12px;
+  font-weight: bold;
+  color: #337ab7;
+  background-color: #f0f4f8;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 4px 8px;
+  transition: background-color 0.2s;
+}
+.help-link:hover {
+  background-color: #e0e6ec;
+}
+
+.form-actions {
+  margin-top: 20px;
+  display: flex;
+  align-items: center; /* Vertically align items */
+  gap: 10px;
+}
   
+
+.sensor-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap; /* allow wrapping on small screens */
+}
+
+.settings-button {
+  background-color: #e9ecef;
+  border: 1px solid #ccc;
+  color: #333;
+  padding: 8px 12px;
+  text-decoration: none;
+  font-size: 14px;
+  margin: 0;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.settings-button:hover {
+  background-color: #d6d8db;
+}

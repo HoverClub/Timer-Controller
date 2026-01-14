@@ -40,7 +40,7 @@ void buildPOSIXdescription(struct posix_tz_data_struct& posixData, String& resul
 
 // tz_str is updated with cleaned up tz POSIX string
 // tz_str_len is sizeof of tz_str storage
-// eg    cleanUpPosixTZStr(timerConfig.tzStr,sizeof(timerConfig.tzStr));
+// eg    cleanUpPosixTZStr(timerConfig.tzStr,MAX_TZ_LEN);
 void cleanUpPosixTZStr(char *tz_str, size_t tz_str_len) {
   String tzStr = tz_str;
   cleanUpPosixTZStr(tzStr);
@@ -48,7 +48,7 @@ void cleanUpPosixTZStr(char *tz_str, size_t tz_str_len) {
 }
 
 void cleanUpPosixTZStr(String& posixTZstr) {
-  debug("cleanUpPosixTZStr:"); debugln(posixTZstr);
+//  debug("cleanUpPosixTZStr:"); debugln(posixTZstr);
   struct posix_tz_data_struct posixData;
   posixTZDataFromStr(posixTZstr, posixData);
   buildPOSIXstr(posixData, posixTZstr);
@@ -96,10 +96,7 @@ void setTZoffsetInMins(int min_offset) {
   String result;
   buildPOSIXstr(posixTZ_Data, result); // sets tzname and cleans up struct.
   debug(result);
-  printPosixData(posixTZ_Data);
-  //  saveTZstr(result.c_str()); // update file
-  //  clearRebootFile();
-  //  ESP.restart(); // see https://github.com/esp8266/Arduino/issues/1017  seems to work here
+//  printPosixData(posixTZ_Data);
   setTZfromPOSIXstr(result.c_str()); // update envir var
 }
 
@@ -404,7 +401,7 @@ void buildPOSIXstr(struct posix_tz_data_struct & posixData, String & result) {
 
 // convert (int)hrOffset : (ont)mmOffset into signed offset_min
 int getMinsFromhhmm(int hhOffset, int mmOffset) {
-  debug("getMinsFromhhmm hhOffset:"); debug(hhOffset); debug(" mmOffset:"); debugln(mmOffset);
+//debug("getMinsFromhhmm hhOffset:"); debug(hhOffset); debug(" mmOffset:"); debugln(mmOffset);
   int rtn = 0;
   if (hhOffset == 0) {
     rtn = mmOffset; // with sign if any
@@ -431,7 +428,7 @@ void posixTZDataFromStr(String & posixTZstr) { // parses POSIX tz str into its c
 
 // cleans up data at end
 void posixTZDataFromStr(String & posixTZstr, struct posix_tz_data_struct & posixTZData) {
-  debug("posixTZDataFromStr("); debug(posixTZstr); debugln(")");
+//  debug("posixTZDataFromStr("); debug(posixTZstr); debugln(")");
   String _posix = posixTZstr.c_str();
   _posix.trim();
   String tzname;
@@ -629,6 +626,6 @@ void posixTZDataFromStr(String & posixTZstr, struct posix_tz_data_struct & posix
   }
 //  printPosixData(posixTZData);
   cleanUpPosixData(posixTZData);
-  printPosixData(posixTZData);
+//  printPosixData(posixTZData);
 }
 

@@ -9,67 +9,63 @@
    Provide this copyright is maintained.
 */
 
-#include "main.h"
+// ==========================
 
-const char timerConfigFileName[MAX_NAME_LEN + 9] = "/" CONTROLLER_NAME "_cfg.bin";  // binary file
+// File functions
+bool initializeFS(); // returns false if fails
+void listDir(const char * dirname); // list to debugOut
+int getFileSize(String name);
+bool truncateFile(uint8_t ctrl, uint8_t num_timers);
 
-timerConfig_struct* loadTimerConfig();
+bool newConfig(String name, void * buffer, uint16_t size);
+bool makeNewControl(int8_t ctrl);
+size_t loadConfig(String name, void * buffer, uint16_t size, uint16_t offset = 0);
+bool saveConfig(String name, void * buffer, uint16_t size, uint16_t offset = 0);
+bool saveSensors();
+bool loadTimer(uint8_t ctrl, int8_t timer, timer_struct * buffer);
+bool saveTimer(int8_t ctrl, int8_t timer, timer_struct * buffer);
+uint8_t loadHeader(int8_t ctrl, header_struct * buffer);
+bool saveHeader(int8_t ctrl, header_struct * buffer);
+bool deleteControl(int ctrl);
+
+void initSettings();
+void initSensors();
+void initSensor(int s);
+void initHeader(header_struct * hdr, int8_t ctrl);
+void initTimer(timer_struct * tmr);
+
+//=================
+// time functions
 void initializeSNTP(); // initializes and starts SNTP server, stops it after first update
-String getTZstr(); // get the current tz string
 void resetDefaultTZstr(); // reset tz to default one
-void showTimeDebug();
 int haveSNTP(); // returns 1 if have sntp response else 0
 String getCurrentTime_hhmm(); // returns local time as hh:mm
 String getUTCTime(); // returns UTC time as hh:mm:ss
 uint32_t getLocalTime_s(); // local time HH:MM:ss in sec
-String getTZvalue(); // the current tz value
-String getTZstr();
 
 bool missedSNTPupdate();
 unsigned int getLocalTime_mins();
-bool saveTimerConfig(timerConfig_struct& timerConfig);
 void setTZfromPOSIXstr(const char* tz_str); // sets flag to save config
-bool saveConfigIfNeeded(); // saves any TZ config changes returns true if save happened
 
-void initGPIO ();
+//===================
+// IO functions
+void initCtrlIO(uint8_t p);
+void initSnsrIO(uint8_t s);
+void initAllSnsrIO();
+
 void setOutputs();
 void readTemps();
 
-// control
-bool isCtrlOn(int); // returns true if within any timer period  in this control is ON 
-bool isOffSelected(int);
-bool isOnSelected(int);
-bool isAutoSelected(int);
-bool isBoostAdv(int c);
-void clrBoostAdv();
-void setOff(int);
-void setOn(int);
-void setAuto(int);
-void setBoost(int);
-void setAdv(int);
-void saveCtrlName(const int c, const char * name);
-char * getCtrlName(int c);
+//===================
+// controls
+bool isCtrlOn(int); // returns true if within any timer period in this control is ON 
 
-// timer set
-void setOnTime(int c, int t, int val);
-void setOffTime(int c, int t, int val);
-void setTemp(int c, int t, int16_t val);
-void setLess(int c, int t, char val);
-void setHyst(int c, int t, uint8_t val);
-void setStat(int c, int t, int val);
+//===================
+// utility
 #ifdef ESP32
   void pollSntp();
 #endif
 
-char * getCtrlName(int c);
-int getOnTime_mins(int c, int t);
-int getOffTime_mins(int c, int t);
-int8_t getTemp(int c, int t);
-int16_t getCurrStatVal(int c, int t);
-char getLess(int c, int t);
-uint8_t getHyst(int c, int t);
-int8_t getStat(int c, int t);
-char getSetting(int c);
 void startRebootTimer();
 
 #endif

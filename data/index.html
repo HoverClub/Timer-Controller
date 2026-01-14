@@ -1,123 +1,231 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>%NAME% Controller</title>
+  <title>%NAME%</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" href="data:,">
   <link rel="stylesheet" type="text/css" href="style.css">
+  <meta charset="UTF-8">
 </head>
 <body>
-<h2>%NAME% Controller</h2>
+<h2 id="NAME">%NAME%</h2>
 <div class="tab">
-  <button class="tablinks" id="setTZbtn" onclick="getControl(-1)">Settings</button>
-  <span class="clock" id="clock">00:00:00</span>
+  <button class="tablinks" id="setTZbtn" value="-1" onclick="getControl(-1)">Settings</button>
+  <div id="EE"></div>
+  <div class="clock-container">
+    <div class="date-container" title="Local Time">
+      <div id="sntp-icon" class="sntp-icon" title="Time Synchronized with NTP"></div>
+      <span class="date" id="date"></span>
+    </div>
+    <span class="clock" id="clock">00:00:00</span>
+  </div>
 </div>
 
 <div id="control" class="tabcontent" >
-
   <!-- Control content -->
   <input type="hidden" id="C" name="C" value=""/>
-  <div id ="EE"></div>
-  <h2>
-    <div>
-      <span>
-        <input type="text" id="N" name="N" value="" maxlength="12">
-      </span>
-      <span id="I"></span>
-    </div>
-  </h2>
-  <div class="content">
-    <div>
-        <button name="A" value="F" onclick="save('F');">OFF</button>  
-        <button name="A" value="N" onclick="save('N');">ON</button>
-        <button name="A" value="A" onclick="save('A');">AUTO</button><br>
-        <button name="A" value="B" onclick="save('B');">1hr BOOST1</button>
-        <button name="A" value="V" onclick="save('V');">ADVANCE1</button>
-    </div>
-    <div class="card-grid">
-      <div class="card">
-        <div class="time">
-          <div id="timers-container">
-            <!-- Timer blocks will be injected here by timer.js -->
-          </div>
-
-          <button type="submit" class="button" onclick="save();">Save Changes</button>
-        </div>
-      </div>
-    </div>
+  <div class="control-buttons-group">
+    <button class="button" name="A" onclick="save(this)" value="0">OFF</button>
+    <button class="button" name="A" onclick="save(this)" value="1">ON</button>
+    <button class="button" name="A" onclick="save(this)" value="2">AUTO</button>
+    <button class="button" name="A" onclick="save(this)" value="3">1hr BOOST</button>
+    <button class="button" name="A" onclick="save(this)" value="4">ADVANCE</button>
+    <span id="I" style="height:20px;"></span>
+    <div class="ctrledit" onclick="openCtrlSettingsModal()">Edit</div>
   </div>
+    <div class="time">
+      <div id="timers-container"></div>
+    </div>
 </div>
 
 <!-- Timer Template -->
 <template id="timer-template">
-  <div class="timer-block" id="T{t}">
-    <div><label><strong>Timer {t}</strong></label></div>
-    <div class="time-field">
-      <label for="T{t}O">ON at:</label>
-      <input type="time" id="T{t}O" name="T{t}O" value="00:00" min="00:00" max="23:59">
-      <label for="T{t}F"> OFF at:</label>
-      <input type="time" id="T{t}F" name="T{t}F" value="00:00" min="00:00" max="23:59">
-    </div>
-    <div class="sensor-section" id="T{t}sect">
-      <div class="time-field">
-        <label for="T{t}S">When sensor </label>
-        <select id="T{t}S" name="T{t}S"></select>
-        <span id="T{t}V"></span>
+  <form id="tmrform{t}" onsubmit="event.preventDefault();">
+    <input type="hidden" id="TMR{t}" name="TMR" value="{t}"/>
+    <input type="hidden" id="T{t}W" name="W" value="0"/>
+    <input type="hidden" id="T{t}D" name="D" value="0"/>
+    <input type="hidden" id="T{t}M" name="M" value="0"/>
+    <div class="timer-block" id="T{t}">
+      <div class="timer-item timer-title">Timer {t}</div>
+      <div class="timer-item timer-on">
+        <label for="T{t}O">ON at (hh:mm)</label>
+        <input type="time" title="24hr time HH:MM" onchange="save(getElementById('TMR{t}'))" id="T{t}O" name="O" value="00:00" min="00:00" max="23:59">
       </div>
-      <div class="time-field">
-        <label for="T{t}L">is </label>
-        <select id="T{t}L" name="T{t}L">
-          <option value="L">less than</option>
-          <option value="M">more than</option>
+      <div class="timer-schedule">
+        <div class="schedule-overlay" title="Day/date/month schedule" id="T{t}Sched" onclick="openCalendarModal({t})">Schedule</div>
+        <span id="T{t}SchedDays" class="schedule-text-display"></span>
+        <span id="T{t}SchedDates" class="schedule-text-display"></span>
+        <span id="T{t}SchedMonths" class="schedule-text-display"></span>
+      </div>
+      <div class="timer-item timer-duration">
+        <label for="T{t}P">Duration (ddd:hh:mm)</label>
+        <input type="text" onchange="save(getElementById('TMR{t}'))" id="T{t}P" name="P" value="000:00:00" pattern="\d{1,3}:\d{2}:\d{2}" placeholder="DDD:HH:MM" title="days:hours:minutes">
+      </div>
+      <div class="timer-item timer-sensor">
+        <label for="T{t}S">Sensor<span id="T{t}V"></span></label>
+        <select onchange="save(getElementById('TMR{t}')); toggleSensorFields(this, {t});" id="T{t}S" name="S"></select>
+      </div>
+      <div class="timer-item timer-condition">
+        <label for="T{t}L">Condition</label>
+        <select onchange="save(getElementById('TMR{t}'))" id="T{t}L" name="L">
+          <option value="0">less than</option>
+          <option value="1">more than</option>
+          <option value="2">within</option>
+          <option value="3">outwith</option>
         </select>
-        <input type="number" id="T{t}T" name="T{t}T" value="0" size="6" min="-32768" max="32767">&#8451;
-         +/-<input type="number" id="T{t}H" name="T{t}H" value="0" size="3" min="0" max="127">
       </div>
-      <hr>
+      <div class="timer-item timer-setpoint">
+        <label for="T{t}T">Setpoint</label>
+        <div>
+          <input type="number" onchange="save(getElementById('TMR{t}'))" id="T{t}T" name="T" value="20" min="-32768" max="32767">&#8451;
+          +/-<input type="number" title="+/- range of setpoint" onchange="save(getElementById('TMR{t}'))" id="T{t}H" name="H" value="0" min="0" max="16383">
+        </div>
+      </div>
     </div>
-  </div>
+  </form>
 </template>
 
+<!-- Settings tab - Control, Sensor & Time settings -->
 <div id="setTZ" class="tabcontent">
-  <div class="content">
-      <div class="card-grid">
-        <div class="card">
-          <div class="time">
-            <form action="/setTime">
-              <label><strong>Current Time</strong></label>
-              <div class="time-field"><input type="time" id="TIME" name="TIME" value="%TI%" min="00:00" max="24:00:00" required></div>
-              <div class="info-txt">Setting the time overrides any Time Zone settings</div>
-              <br>OR<p>
-              <label for="fname">POSIX Time Zone</label><br>
-              <div class="info-txt">(Note: POSIX TZ uses the -ve of the GMT offset)</div>
-              <div class="info-txt" id="tz_str_corrected">%TC%</div>
-              <div class="tzstr-field"><input type="text" id="TZ_INPUT_STR" name="TZ_INPUT_STR" style="width: 250px;" value="%TZ%"></div>
-              <div class="arrowpopup" onclick="myFunction()" style="font-size: 15px;"><b>&lt;Click here for Format Help&gt;</b>
-                <span class="tooltiptext" id="tooltipdemo">TZ/DST Format Help<br><br>-GMT hr:mm<br>e.g. for GMT+0530 enter -5:30<br>
-              or<br> -GMT hr:mm , dstStart , dstStop i.e.<br>-GMT hr:mm , mm.wk.dy/hr , mm.wk.dy/hr<br>periods (.) between mm wk dy<br>
-              mm is 1 to 12<br>wk is 1 to 5(lastweek)<br>
-              dy is 0 (Sun) to 6<br><br>e.g. 8,10.1.0/2<br>
-              cleans up to<br>&lt;-08&gt;8&lt;-07&gt;7,M10.1.0/2,M4.1.0/2</span>
-              </div>
-              <div class="info-txt" id="tz_str_desc">%TD%</div>
-              <button type="submit" class="button">Save changes</button>
-              <div><button type="submit" name="RESET" class="button" style ="font-size: 15px;">Reset Default Time Zone</button></div>
-              <div class="info-txt" id="tz_str_set_corrected">%TS%</div>
-              <br>
-            </form>
-            <div>
-              <a href="/download" class="button">Download Config File</a>
-              <form method="POST" action="/upload" enctype="multipart/form-data" style="display: inline-block; vertical-align: middle; margin-top: 1em;">
-                <input type="file" id="file-upload" name="bin" accept=".bin" onchange="form.submit();" style="display: none;">
-                <label for="file-upload" class="button">Upload Config File</label>
-              </form>
-            </div>
-          </div>
-        </div>
-      </div> 
+  <div class="settings-block">
+    <label for="CN">Controller name:</label>
+    <input type="text" id="CN" name="CN" size="15" maxlength="15" onchange="save(this)" value="%NAME%"><br>
+    <hr>
+    <button class="button" id="SA" name="SA" value="A" onclick="save(this)">Add New Control</button>
+    <button class="button" id="SD" name="SA" value="D" onclick="save(this)">Delete Last Control</button>
+    <hr>
+    <div class="sensor-actions">
+      <label for="XS">Sensor:</label>
+      <select id="XS" name="XS" value="-1"></select>
+      <button class="settings-button" onclick="openSnsrSettingsModal()">Edit This Sensor</button>
+      <button class="settings-button" id="XA" name="XA" value="A" onclick="save(this)">Add Sensor</button>
+      <button class="settings-button" id="XD" name="XA" value="D" onclick="save(this)">Remove Last Sensor</button>
+    </div>
+    <hr>
+    <form  action="/setTime">
+      <label><strong>Current Time</strong></label>
+      <div class="time-field"><input type="time" id="TIME" name="TIME" value="%TI%" min="00:00" max="24:00:00"  onchange="form.submit()" required></div>
+      <div class="info-txt">Setting the time overrides any Time Zone settings</div>
+      <br>OR<p>
+      <label for="fname">POSIX Time Zone</label><br>
+      <div class="info-txt">(Note: POSIX TZ uses the -ve of the GMT offset)</div>
+      <div class="info-txt" id="tz_str_corrected">%TC%</div>
+      <div class="tzstr-field"><input type="text" id="TZ_INPUT_STR" name="TZ_INPUT_STR" value="%TZ%" onchange="form.submit()"></div>
+      <div class="arrowpopup" onclick="toggleTooltip('tooltipdemo')">
+        <span class="help-link">Format Help</span>
+        <span class="tooltiptext" id="tooltipdemo">TZ/DST Format Help<br><br>-GMT hr:mm<br>e.g. for GMT+0530 enter -5:30<br>
+      or<br> -GMT hr:mm , dstStart , dstStop i.e.<br>-GMT hr:mm , mm.wk.dy/hr , mm.wk.dy/hr<br>periods (.) between mm wk dy<br>
+      mm is 1 to 12<br>wk is 1 to 5(lastweek)<br>
+      dy is 0 (Sun) to 6<br><br>e.g. 8,10.1.0/2<br>
+      cleans up to<br>&lt;-08&gt;8&lt;-07&gt;7,M10.1.0/2,M4.1.0/2</span>
+      </div>
+      <div class="info-txt" id="tz_str_desc">%TD%</div>
+      <div class="form-actions">
+        <button type="submit" name="RESET" class="button">Reset Default Time Zone</button>
+      </div>
+      <div class="info-txt" id="tz_str_set_corrected">%TS%</div>
+      <br>
+    </form>
+    <hr>
+    <div class="form-actions">
+      <a href="/download-all" class="button">Backup Configuration</a>
+      <form method="POST" action="/restore-config" enctype="multipart/form-data">
+        <input type="file" id="restore-upload" name="restore-file" accept=".dat" onchange="form.submit();" style="display: none;">
+        <label for="restore-upload" class="button">Restore Configuration</label>
+      </form>
     </div>
   </div>
 </div>
+
+<!-- Calendar Modal (moved out of template for simplicity) -->
+<div id="CalendarModal" class="modal">
+  <div class="modal-content">
+    <span class="close-button" onclick="closeCalendarModal()">&times;</span>
+    <h4 id="CalendarTitle">Timer Schedule</h4>
+    <h5>Weekdays</h5>
+    <div id="CalendarW" class="calendar-grid"></div>
+    <h5>Dates</h5>
+    <div id="CalendarD" class="calendar-grid"></div>
+    <h5>Months</h5>
+    <div id="CalendarM" class="calendar-grid"></div>
+  </div>
+</div>
+
+<!-- Control Settings Modal -->
+<div id="CtrlSettingsModal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <span class="close-button" id="SC" onclick="save(this)">&times;</span>
+    <h4>Control Settings</h4>
+    <form id="ctrlSettingsForm" onsubmit="event.preventDefault();">
+        <label for="SN">Name:</label>
+        <input type="text" id="SN" name="SN" size="12" maxlength="12" ><br>
+        <label for="ST">Number of Timers:</label>
+        <input type="number" id="ST" name="ST" min="1" max="126" value="1""><br>
+        <label for="SX">Expander ID#:</label>
+        <select id="SX" name="SX" onclick="setMaxPin(this.value, 1, 'SP');">
+          <option value="-1">None (MCU pin)</option>
+          <option value="0">ID0</option>
+          <option value="1">ID1</option>
+          <option value="2">ID2</option>
+          <option value="3">ID3</option>
+        </select>
+        <label for="SL">Pin/Ch #:</label>
+        <input type="number" id="SP" name="SP" min="-1" max="63" >
+        <div class="arrowpopup" style="display:inline-block; margin:0;" onclick="toggleTooltip('ctrlPinHelp')">
+           <span class="help-link">?</span>
+           <span class="tooltiptext" id="ctrlPinHelp">%PIN_HELP%</span>
+        </div><br>
+        <label for="SL">Active Level:</label>
+        <select id="SL" name="SL" >
+          <option value="0">High</option>
+          <option value="1">Low</option>
+        </select><br><br>
+    </form>
+  </div>
+</div>
+
+<!-- Sensor editor Modal -->
+<div id="SnsrSettingsModal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <span class="close-button" id="XC" onclick="save(this)">&times;</span>
+    <h4>Sensor Settings</h4>
+    <form id="snsrSettingsForm" onsubmit="event.preventDefault();">
+      <label for="XN">Name:</label>
+      <input type="text" id="XN" name="XN" size="12" maxlength="12" ><br>
+      <label for="XT">Sensor Type:</label>
+      <select id="XT" name="XT" >
+        <option value="0">Analog</option>
+        <option value="1">Digital</option>
+      </select><br>
+      <label for="XX">Expander ID#:</label>
+      <select id="XX" name="XX" onclick="setMaxPin(this.value, document.getElementById('XT').value, 'XP');">
+        <option value="-1">None (MCU pin)</option>
+        <option value="0">ID0</option>
+        <option value="1">ID1</option>
+        <option value="2">ID2</option>
+        <option value="3">ID3</option>
+      </select>
+      <label for="XP">Pin/Ch #:</label>
+      <input type="number" id="XP" name="XP" min="-1" max="63" >
+      <div class="arrowpopup" style="display:inline-block; margin:0;" onclick="toggleTooltip('snsrPinHelp')">
+           <span class="help-link">?</span>
+           <span class="tooltiptext" id="snsrPinHelp">%PIN_HELP%</span>
+      </div><br>
+      <strong>Analog Sensors:</strong><br>
+      <label for="XM">Multiplex pin# (-1 for none):</label>
+      <input type="number" id="XM" name="XM" min="-1" max="127" ><br>
+      Steinhart-Hart parameters applied (disabled if beta = 0)<br>
+      <label for="XB">Beta:</label>
+      <input type="number" id="XB" name="XB" min="0" max="65535" >
+      <label for="XR">Sensor Resistance:</label>
+      <input type="number" id="XR" name="XR" min="0" max="65535"><br>
+      <label for="XU">Pull up resistance:</label>
+      <input type="number" id="XU" name="XU" min="0" max="65535" ><br>
+      Resistances are in ohms / 10.
+    </form>
+  </div>
+</div>
+
 
 <script type="text/javascript" src="timer.js"></script>
 </body>

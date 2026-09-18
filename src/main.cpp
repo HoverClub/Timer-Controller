@@ -6,15 +6,18 @@ A comprehensive web-based controller for managing timers, sensors and control ou
 Supports up to 127 controls with multiple timers per control.  Each
 timer can be controlled by a thermostat/switch with user-programmable states.
 
-   V2.1.0
+   V2.1.1
 
+   2026/09/17         Added mDNS - device appears on local network as 'EXAMPLE.local' (or 
+                      whatever controller name is in the settings - name now has to be 
+                      domain-name compliant).  Added urldecode to POST strings. Prevent GPIO 
+                      analog read if no sensor expander available (bug).
    2025/12/16         Added Mutex to all file access.  Async down/uploads will wait for
                       1 sec to acquire a mutex (and release it if the browser aborts the file 
                       transfer). Main loop file actions will wait for 6 secs (worst case max 
                       filesize down/upload times).  Uses local scopt header buffers for all Async
                       functions to avoid potential memory corruption.  Async always uses the 
                       supplied control# (i.e. main loop does not sync control# to the browser)..
-
    2025/12/13         Changed FS from LittleFS to SPIFFS to improve file read performance.
    2025/12/09         Uses local scope timer buffers for all Async operations and, for loop(() 
                       ops a single control buffer (isCtlrOn()) used to check control states 
@@ -25,24 +28,19 @@ timer can be controlled by a thermostat/switch with user-programmable states.
    2025/12/03         Allows sensors to be specified by the user.  System will restart 
                       if the number of sensors is changed.  All config files can be backed
                       up and restoed as one file.
-
    2025/11/10         Added weekday, date & month to on and off times in each timer.
                       Changed GET to POST for control config request - GET can't send 
                       enough data if many timers specified. Now has user-defined controls
                       specifying name, pin, num_timers, etc.
-
    2025/11/06         Fixed bug - saves current state in timer struct now (was saved
                       per stat).
-   
    20205/11/04        Added with/outwith range options to less/more than using the 
                       hysteresis value (i.e active within/outwith a range of temps).
-
    2025/10/26         Simplified logic for initializeWifiConfig(). Also for control and
                       pins arrays (now auto-sized). Added ESP32 build options (changes 
                       to timer logic, etc.).  Added support for I2C ADC1115 modules (ADC 
                       extenders) and for MCP23017 digital IO expanders.  Hysteresis
                       now available for sensor inputs.
-
    2024/12/12 V2.0.0  Removed static IP option (most routers seem to block external
                       UDP (or IP) access for non-DHCP clients.
                       Added OLED display with QR codes for WiFi config and to show 
@@ -94,7 +92,7 @@ Flash: [====      ]  38.9% (used 406397 bytes from 1044464 bytes)
 
 ESP32 debug
 RAM:   [==        ]  16.7% (used 54776 bytes from 327680 bytes)
-Flash: [=======   ]  74.7% (used 979657 bytes from 1310720 bytes)
+Flash: [=======   ]  74.7% (used 979581 bytes from 1310720 bytes)
 8266 debug
 // uses mutex &  dynamic buffers for hdrs and timers - no common buffers to avoid Async issues!
 RAM:   [=====     ]  53.9% (used 44152 bytes from 81920 bytes)
@@ -343,6 +341,13 @@ debugf("  ctrlCount:%i, totTimers:%i, snsrCount:%i\n\n", ctrlCount, totTimers, s
 
   String nIP = "http://" + WiFi.localIP().toString();
   debugf("\nConnected to %s as %s\n", wifiConfigPtr->ssid, nIP.c_str());
+  if (!MDNS.begin(settings.name)) { // Start the mDNS responder
+    debugln("Error setting up MDNS responder!");
+  } else {
+    debugf("MDNS responder started at http://%s\n", settings.name);
+    MDNS.addService("http", "tcp", 80);
+  }
+
 #if (OLED_TYPE != oled_none)
   printIPconfig(nIP.c_str());
 #endif

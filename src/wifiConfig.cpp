@@ -257,30 +257,22 @@ static void setupAP(const char* ssid_wifi, const char* password_wifi) {
 
 String urlDecode(const String& text) {
   String decoded;
-  char temp[] = "0x00";
+  decoded.reserve(text.length());
   unsigned int len = text.length();
   unsigned int i = 0;
   while (i < len)
   {
-    char decodedChar;
     char encodedChar = text.charAt(i++);
     if ((encodedChar == '%') && (i + 1 < len))
     {
-      temp[2] = text.charAt(i++);
-      temp[3] = text.charAt(i++);
-
-      decodedChar = strtol(temp, NULL, 16);
+      char hex[3] = { text.charAt(i), text.charAt(i+1), '\0' };
+      decoded += (char)strtol(hex, NULL, 16);
+      i += 2;
+    } else if (encodedChar == '+') {
+      decoded += ' ';
+    } else {
+      decoded += encodedChar;
     }
-    else {
-      if (encodedChar == '+')
-      {
-        decodedChar = ' ';
-      }
-      else {
-        decodedChar = encodedChar;  // normal ascii char
-      }
-    }
-    decoded += decodedChar;
   }
   return decoded;
 }

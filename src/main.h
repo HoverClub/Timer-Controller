@@ -21,7 +21,9 @@
 #ifdef ESP32
   #include <time.h>                       // time() ctime()
   #include <sys/time.h>                   // struct timeval
+  #include "ESPmDNS.h"
 #else
+  #include <ESP8266mDNS.h>
   #include <WiFiClient.h>
 #endif
 #include <IPAddress.h>
@@ -109,6 +111,7 @@
 // WiFi access point settings (configuration web page IP access)
 #define wifiWebConfigPASSWORD ""
 #define wifiWebConfigAP ("Timer_Controller")
+#define wifiDNSName ("TMRCTRL")
 #define LOCAL_IP (IPAddress(10, 1, 1, 1))
 #define GATEWAY_IP (IPAddress(10, 1, 1, 1))
 #define SUBNET_IP (IPAddress(255, 255, 255, 0))

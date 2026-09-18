@@ -100,17 +100,11 @@ async function getControl(ctrlNum) {
   to the web page!
 
   1.  If src.name == 'A'  then change control mode to src.value (0-4) 
-
   2.  If src.name = SC or SA then POST updated control data (name, pin, etc.)
-
       Backend add/delete timers until it matchs 'ST' if supplied
-  
   3.  If src.name = XA then add/delete a sensor
-
   4.  If src.name = XC then update current sensor data.
-    
   5.  If src.name = "TMR" then POST tmrformxxx adding the ctrl# :
-      
       Backend updates the controls timer parms.  If any changes then updates the timer file.
 */
 async function save(src) {
@@ -478,7 +472,7 @@ function updateScheduleOverlay(t) {
   const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
   const getSelectedText = (val, names, label) => {
-      if (val == 0) return 'All ${label}'; // No bits set means all are valid, so display nothing.
+      if (val == 0) return `All ${label}`; // No bits set means all are valid, so display nothing.
       let selected = [];
       for (let i = 1; i <= (names ? names.length : 31); i++) {
           if ((val & (1 << i)) !== 0) {
@@ -544,6 +538,7 @@ function addTimer(timerNum) {
   // setup sensor selector for timer
   makeSnsrSelect(document.getElementById("T" + timerNum + "S"), -1); // select "none" as default
   toggleSensorFields(document.getElementById("T" + timerNum + "S"), timerNum); // hide setpoint & condition fields
+  updateScheduleOverlay(timerNum); // display default timer days/week/month
 }
 
 // startup stuff

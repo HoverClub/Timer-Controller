@@ -192,23 +192,17 @@ bool truncateFile(uint8_t ctrl, uint8_t num_timers) {
 debugf("trunc ctrl %i %s, tmrs:%i\n", ctrl, name.c_str(), num_timers);
   header_struct hdrBuffer;
   timer_struct newTimer;
+  const char* tempFileName = "/trunc.tmp";
   if (!loadHeader(ctrl, &hdrBuffer)) return false;; 
-//  if (!saveHeader(127, &hdrBuffer)) return false; // tmp /control_255.bin file!
-  if (!newConfig("/control_127.bin", &hdrBuffer, sizeof(header_struct))) return false;
+  if (!newConfig(tempFileName, &hdrBuffer, sizeof(header_struct))) return false;
   for (uint8_t i = 0; i < num_timers; i++) {
-//debugf("trunc %s, loadTmr:%i\n", name.c_str(), i);
     if (!loadTimer(ctrl, i, &newTimer)) return false;
-//debugf("trunc %s, saveTmr:%i\n", name.c_str(), i);
-    if (!saveTimer(127, i, &newTimer)) return false; // write timer
+    // saveTimer expects a control index, but we need to write to the temp file
+    if (!saveConfig(tempFileName, &newTimer, sizeof(timer_struct), sizeof(header_struct) + (i * sizeof(timer_struct)))) return false;
   }
-debugf("trunc wr done %s\n", name.c_str());
-//listDir("/");
   bool rtn = SPIFFS.remove(name);
-debugf("after remove %s rtn %i\n", name.c_str(), rtn);
-listDir("/");
-  if (rtn) rtn = SPIFFS.rename("/control_127.bin", name); // delete & rename
-debugf("after rename %s rtn %i\n", name.c_str(), rtn);
-listDir("/");
+  if (rtn) rtn = SPIFFS.rename(tempFileName, name);
+  else SPIFFS.remove(tempFileName); // Cleanup if rename failed
   return rtn;
 #else
   uint32_t mTimer = millis(); while (!GetMutex(FSmutex)) { if ((millis() - mTimer) > 6000) return 0;  delay(1); }
@@ -634,7 +628,7 @@ debugf("init snsr:%i\n", sensors[s].pinNum);
     
     } else { // ADC
       if (IS_STAT_EXPANDER(s)) { // got an I2C input?
-        // add a driver object to the ADCexpander array - ony if not already there
+        // add a driver object to the ADCexpander array - only if not already there
         uint8_t id = GET_STAT_EXP_ID(s);
         if (ADCexpander[id] == nullptr) { // if not enabled yet - ADC I2C addresses are 0x48-0x4B
           ADCexpander[id] = new Adafruit_ADS1115;
@@ -952,18 +946,19 @@ void readTemps() {
       
       // read the stat
       if (IS_STAT_PIN_AVAIL(s)) {
-//debugf("read stat pin 0x%02X = ", sensors[s].pinNum);
+//debugf("read stat %02X pin:0x%02X = ", s, sensors[s].pinNum);
         int16_t temp = 0;
         if (IS_STAT_DIGITAL(s)) {
-          if (IS_STAT_EXPANDER(s)) { // MCP23017 expander?
+          if (IS_STAT_EXPANDER(s)) { // MCP23017 expander enabled?
             if (DIGexpander[GET_STAT_EXP_ID(s)]) temp = DIGexpander[GET_STAT_EXP_ID(s)]->digitalRead(GET_STAT_EXP_CH(s));
           } else {
             temp = digitalRead(sensors[s].pinNum);
           }
 
         } else { // analog
-          if (IS_STAT_EXPANDER(s) && ADCexpander[GET_STAT_EXP_ID(s)]) { // adc1115 expander
-            temp = ADCexpander[GET_STAT_EXP_ID(s)]->readADC_SingleEnded(GET_STAT_EXP_CH(s));
+          if (IS_STAT_EXPANDER(s)) {
+            if (ADCexpander[GET_STAT_EXP_ID(s)]) // got this adc1115 expander?
+              temp = ADCexpander[GET_STAT_EXP_ID(s)]->readADC_SingleEnded(GET_STAT_EXP_CH(s));
 
           } else if (IS_STAT_MPLEX(s)) {
             digitalWrite(GET_STAT_MPLEX_PIN(s), LOW);

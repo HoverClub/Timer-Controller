@@ -45,8 +45,10 @@ void startWebServer() {
   server.on("/", HTTP_GET, [](AsyncWebServerRequest * request) {request->send(SPIFFS, "/index.html", String(), false, processor);  });
   server.on("/index.html", HTTP_GET, [](AsyncWebServerRequest * request) {request->send(SPIFFS, "/index.html", String(), false, processor);  });
 
-/*  getControl can return up to 20K of JSON data so uses chunked response to reduce buffer requirements (response printf's accumulate
-    and needs a buffer for the entire response!  For 8266 it takes ~150mSecs to transfer a 126 timer/50 sensor Control.     */
+/*  getControl can return up to 20K of JSON data so uses chunked response to reduce buffer requirements (response 
+*   printf's accumulate and need a buffer for the entire response!  For 8266 it takes ~150mSecs to transfer a 126 
+*   timer/50 sensor Control.     
+*/
  server.on("/getControl", HTTP_POST, [](AsyncWebServerRequest *request) { 
     int ctrl = 0;
     if (request->hasParam("C", true)) ctrl = request->getParam("C", true)->value().toInt(); 
@@ -59,13 +61,11 @@ void startWebServer() {
         static uint8_t tmr_idx; // current timer#
         static uint8_t tmrCount = 0;
         static uint8_t snsr_idx; // current sensor #
-static uint32_t timeChk;
 
         if (index == 0) { // First call for this request, reset state
           hdr_sent = false; // true if ctrl header has been sent
           tmr_idx = 1; // starts at timer1 - timer0 isn't sent
           snsr_idx = 0;
-timeChk = millis(); // start timer
         }
 //debugf("Ctrl: %i maxLen: %i index: %i\n", ctrl, maxLen, index);
 
@@ -96,8 +96,6 @@ timeChk = millis(); // start timer
 
         if (tmr_idx == tmrCount) {
           if (snsr_idx == snsrCount) {
-//debugf("ctrl %i timeChk: %lu\n", ctrl, millis() - timeChk);
-
             return 0; // all done
           } else {
             /* max len - can't use sprintf to get length as we don't know which entry has largest numeric values!
@@ -722,9 +720,16 @@ uint32_t handlerTimer = millis();
     } else if (request->hasParam("XA", true) || request->hasParam("XC", true)) { // add/del/edit sensor?
       errorMsg = handleSensorUpdate(request);
     } else if (request->hasParam("CN", true)) {
-      String name = request->getParam("CN", true)->value();
-      name = name.substring(0, MAX_SYS_NAME_LEN); // truncate
+      String name = urlDecode(request->getParam("CN", true)->value().substring(0, MAX_SYS_NAME_LEN));
+      name.trim(); 
       if (!name.isEmpty()) {
+        // only allowed alphnum, hyphen (not at start or end) or . in domain names
+        for (int i = 0; i < name.length(); i++) {
+          if (!(isalnum(name[i]) || name[i] == '.' || name[i] == '-'))
+            name[i] = '-'; // replace invalid chrs with hyphens
+        }
+        if (name[0] == '-') name.remove(0, 1);
+        if (name[name.length() - 1] == '-') name.remove(name.length() - 1, 1); // no leading/trailing hyphen allowed
         strlcpy(settings.name, name.c_str(), sizeof(settings.name));
         saveConfig("/settings.bin", &settings, sizeof(settings_struct), 0);
       }
@@ -767,7 +772,7 @@ debugf("->snsr update idx:%i\n", idx);
       if (idx >= 0 && idx < snsrCount) {
         // name change?
         if (request->hasParam("XN", true)) {
-          String decoded = String(request->getParam("XN", true)->value());
+          String decoded = urlDecode(request->getParam("XN", true)->value());
           decoded = decoded.substring(0, MAX_NAME_LEN); // truncate
           if (!decoded.isEmpty()) {
             if (strncmp(decoded.c_str(), (char *)&sensors[idx].name, sizeof(sensors[idx].name)) != 0) {
@@ -972,7 +977,7 @@ debugf("->update ctrl:%i\n", ctrl);
     // name change?
     if (request->hasParam("SN", true)) {
       if (request->getParam("SN", true)->value().length()) {
-        String decoded = request->getParam("SN", true)->value();
+        String decoded = urlDecode(request->getParam("SN", true)->value());
         decoded = decoded.substring(0, MAX_NAME_LEN); // truncate
         if (!decoded.isEmpty()) {
           if (strncmp(decoded.c_str(), tmpHeader.name, MAX_NAME_LEN) != 0) {
@@ -1038,7 +1043,8 @@ debugln("->tmr update\n");
         if (loadTimer(ctrl, timer, &editTimer)) { // get the timer data
           bool timerChanged = false;
           if (request->hasParam("O", true)) {
-            uint16_t val = convertHH_MMtoMins(request->getParam("O", true)->value());
+            String decoded = urlDecode(request->getParam("O", true)->value());
+            uint16_t val = convertHH_MMtoMins(decoded);
             if (val != editTimer.onTime) {
               editTimer.onTime = val;
               timerChanged = true;
@@ -1066,7 +1072,8 @@ debugln("->tmr update\n");
             }
           }
           if (request->hasParam("P", true)) {
-            uint32_t val = convertDDD_HH_MMtoMins(request->getParam("P", true)->value());
+            String decoded = urlDecode(request->getParam("P", true)->value());
+            uint32_t val = convertDDD_HH_MMtoMins(decoded);
             if (val != editTimer.duration) {
               editTimer.duration = val;
               timerChanged = true;

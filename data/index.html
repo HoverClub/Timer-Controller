@@ -89,7 +89,7 @@
 <div id="setTZ" class="tabcontent">
   <div class="settings-block">
     <label for="CN">Controller name:</label>
-    <input type="text" id="CN" name="CN" size="15" maxlength="15" onchange="save(this)" value="%NAME%"><br>
+    <input type="text" id="CN" name="CN" size="15" maxlength="15" pattern="[A-Za-z0-9._-]+" title="Only alphanumeric, '-' or '.' characters are allowoed" onchange="save(this)" value="%NAME%"><br>
     <hr>
     <button class="button" id="SA" name="SA" value="A" onclick="save(this)">Add New Control</button>
     <button class="button" id="SD" name="SA" value="D" onclick="save(this)">Delete Last Control</button>
